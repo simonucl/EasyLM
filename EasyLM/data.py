@@ -217,10 +217,15 @@ class HuggingfaceDataset(object):
                         'dataset_example_index': index,
                         'dataset_total_tokens': total_tokens,
                     }
+                    input_tokens = np.array(token_buffer[:chunk_size], dtype=self.config.batch_token_dtype).reshape(
+                        self.config.batch_size, -1
+                    )
+                    attention_mask = np.ones_like(input_tokens)
+                    # mask out the padding
+                    attention_mask[input_tokens == self.tokenizer.pad_token_id] = 0
                     batch = {
-                        'input_tokens': np.array(token_buffer[:chunk_size], dtype=self.config.batch_token_dtype).reshape(
-                            self.config.batch_size, -1
-                        ),
+                        'input_tokens': input_tokens,
+                        'attention_mask': attention_mask,
                         'target_tokens': np.array(token_buffer[1:chunk_size + 1], dtype=self.config.batch_token_dtype).reshape(
                             self.config.batch_size, -1
                         ),
@@ -230,6 +235,7 @@ class HuggingfaceDataset(object):
                     }
                     if self.config.always_start_with_bos:
                         batch['input_tokens'][:, 0] = self.tokenizer.bos_token_id
+                        batch['attention_mask'][:, 0] = 1
                     yield batch, metrics
                     token_buffer = token_buffer[chunk_size:]
                     loss_mask_buffer = loss_mask_buffer[chunk_size:]
@@ -240,6 +246,10 @@ class HuggingfaceDataset(object):
     def load_state_dict(self, state_dict):
         if 'config' in state_dict:
             self.config.update(ConfigDict(state_dict['config']))
+
+    # write a function to get the length of the dataset
+    def __len__(self):
+        return len(self._dataset)
 
     @property
     def seq_length(self):
@@ -468,6 +478,7 @@ class JsonTorchDataset(object):
         self._text_processor = text_processor
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
         dataset = load_dataset('json', data_files=self.config.path)
+        # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
         self.dataset = dataset['train'].map(
             self._process_sample,
             batched=False,

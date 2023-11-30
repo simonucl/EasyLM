@@ -30,7 +30,7 @@ import jax.numpy as jnp
 import flax
 from flax.traverse_util import flatten_dict
 import torch
-from transformers import LlamaConfig, LlamaForCausalLM
+from transformers import LlamaConfig, LlamaForCausalLM, LlamaTokenizer
 
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.jax_utils import float_tensor_to_dtype
@@ -41,6 +41,7 @@ FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
     tokenizer_path='',
     model_size='13b',
     output_dir='',
+    hf_dir='',
 )
 
 
@@ -132,6 +133,7 @@ def write_json(text, path):
 
 
 def write_model(loaded, model_path, model_size):
+    print(loaded.keys())
     os.makedirs(model_path, exist_ok=True)
     tmp_model_path = os.path.join(model_path, "tmp")
     os.makedirs(tmp_model_path, exist_ok=True)
@@ -161,20 +163,20 @@ def write_model(loaded, model_path, model_size):
         filename = f"pytorch_model-{layer_i + 1}-of-{n_layers + 1}.bin"
         state_dict = {
             f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
-                loaded[f"transformer.h.{layer_i}.attention.wq.kernel"]
+                loaded[f"params.params.transformer.h.{layer_i}.attention.wq.kernel"]
             ),
             f"model.layers.{layer_i}.self_attn.k_proj.weight": permute_gqa(
-                loaded[f"transformer.h.{layer_i}.attention.wk.kernel"]
+                loaded[f"params.params.transformer.h.{layer_i}.attention.wk.kernel"]
             ),
-            f"model.layers.{layer_i}.self_attn.v_proj.weight": loaded[f"transformer.h.{layer_i}.attention.wv.kernel"],
-            f"model.layers.{layer_i}.self_attn.o_proj.weight": loaded[f"transformer.h.{layer_i}.attention.wo.kernel"],
+            f"model.layers.{layer_i}.self_attn.v_proj.weight": loaded[f"params.params.transformer.h.{layer_i}.attention.wv.kernel"],
+            f"model.layers.{layer_i}.self_attn.o_proj.weight": loaded[f"params.params.transformer.h.{layer_i}.attention.wo.kernel"],
 
-            f"model.layers.{layer_i}.mlp.gate_proj.weight": loaded[f"transformer.h.{layer_i}.feed_forward.w1.kernel"],
-            f"model.layers.{layer_i}.mlp.down_proj.weight": loaded[f"transformer.h.{layer_i}.feed_forward.w2.kernel"],
-            f"model.layers.{layer_i}.mlp.up_proj.weight": loaded[f"transformer.h.{layer_i}.feed_forward.w3.kernel"],
+            f"model.layers.{layer_i}.mlp.gate_proj.weight": loaded[f"params.params.transformer.h.{layer_i}.feed_forward.w1.kernel"],
+            f"model.layers.{layer_i}.mlp.down_proj.weight": loaded[f"params.params.transformer.h.{layer_i}.feed_forward.w2.kernel"],
+            f"model.layers.{layer_i}.mlp.up_proj.weight": loaded[f"params.params.transformer.h.{layer_i}.feed_forward.w3.kernel"],
 
-            f"model.layers.{layer_i}.input_layernorm.weight": loaded[f"transformer.h.{layer_i}.attention_norm.kernel"],
-            f"model.layers.{layer_i}.post_attention_layernorm.weight": loaded[f"transformer.h.{layer_i}.ffn_norm.kernel"],
+            f"model.layers.{layer_i}.input_layernorm.weight": loaded[f"params.params.transformer.h.{layer_i}.attention_norm.kernel"],
+            f"model.layers.{layer_i}.post_attention_layernorm.weight": loaded[f"params.params.transformer.h.{layer_i}.ffn_norm.kernel"],
 
         }
 
@@ -187,9 +189,9 @@ def write_model(loaded, model_path, model_size):
     filename = f"pytorch_model-{n_layers + 1}-of-{n_layers + 1}.bin"
         # Unsharded
     state_dict = {
-        "model.embed_tokens.weight": loaded["transformer.wte.embedding"],
-        "model.norm.weight": loaded["transformer.ln_f.kernel"],
-        "lm_head.weight": loaded["lm_head.kernel"],
+        "model.embed_tokens.weight": loaded["params.params.transformer.wte.embedding"],
+        "model.norm.weight": loaded["params.params.transformer.ln_f.kernel"],
+        "lm_head.weight": loaded["params.params.lm_head.kernel"],
     }
 
     for k, v in state_dict.items():
@@ -293,6 +295,12 @@ def write_tokenizer(tokenizer_path, input_tokenizer_path):
     )
     shutil.copyfile(input_tokenizer_path, os.path.join(tokenizer_path, "tokenizer.model"))
 
+def save_hf(model_path, hf_dir):
+    tokenizer = LlamaTokenizer.from_pretrained(model_path)
+    model = LlamaForCausalLM.from_pretrained(model_path)
+
+    tokenizer.push_to_hub(hf_dir)
+    model.push_to_hub(hf_dir)
 
 def main(argv):
     assert FLAGS.load_checkpoint != "" and FLAGS.output_dir != "" and FLAGS.tokenizer_path != ""
@@ -306,7 +314,10 @@ def main(argv):
         model_path=FLAGS.output_dir,
         model_size=FLAGS.model_size,
     )
-
+    save_hf(
+        model_path=FLAGS.output_dir,
+        hf_dir=FLAGS.hf_dir,
+    )
 
 if __name__ == "__main__":
     mlxu.run(main)

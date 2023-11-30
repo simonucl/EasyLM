@@ -11,8 +11,9 @@ from jax.experimental.pjit import pjit
 from jax.sharding import PartitionSpec as PS
 from flax.training.train_state import TrainState
 import torch
+import tensorflow as tf
 
-from EasyLM.data import DatasetFactory
+from EasyLM.data import DatasetFactory, HuggingfaceDataset
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.optimizers import OptimizerFactory
 from EasyLM.jax_utils import (
@@ -24,7 +25,6 @@ from EasyLM.jax_utils import (
 from EasyLM.models.llama.llama_model import (
     LLaMAConfig, FlaxLLaMAForCausalLMModule
 )
-
 
 FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
     seed=42,
@@ -54,6 +54,9 @@ FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
 
 
 def main(argv):
+    tf.profiler.experimental.server.start(6009)
+    jax.profiler.start_trace("tmp/trace")
+    
     JaxDistributedConfig.initialize(FLAGS.jax_distributed)
 
     variant = mlxu.get_user_flags(FLAGS, FLAGS_DEF)
@@ -78,6 +81,11 @@ def main(argv):
     real_batch_size = wrapped_dataset.config.batch_size
     # for the scheduler, which only gets updated with 'real' grad steps
     simulated_batch_size = real_batch_size * FLAGS.optimizer.accumulate_gradient_steps
+    # if isinstance(wrapped_dataset, HuggingfaceDataset):
+    #     dataset_len = len(wrapped_dataset.dataset)
+    # else:
+    #     dataset_len = len(wrapped_dataset)
+        
     steps_per_epoch = len(wrapped_dataset) // real_batch_size
     simulated_steps_per_epoch = len(wrapped_dataset) // simulated_batch_size
     print(f"Make sure your scheduler steps are based on the simulated batch size: {simulated_batch_size}!")
@@ -274,10 +282,10 @@ def main(argv):
             for step, batch in zip(step_counter, dataset):
                 if isinstance(batch, (list, tuple)):
                     batch = {
-                        'input_tokens': batch['input_tokens'],
-                        'attention_mask': batch['attention_mask'],
-                        'loss_masks': batch['loss_masks'],
-                        'target_tokens': batch['target_tokens'],
+                        'input_tokens': batch[0]['input_tokens'],
+                        'attention_mask': batch[0]['attention_mask'],
+                        'loss_masks': batch[0]['loss_masks'],
+                        'target_tokens': batch[0]['target_tokens'],
                     }
                 # just measuring the train step time.
                 start_time = time.time()
@@ -331,11 +339,14 @@ def main(argv):
             log_metrics = {"step": step}
             metrics = {k: float(v) for k, v in metrics.items()}
             log_metrics.update(metrics)
-            logger.log(log_metrics)
+            logger.log(log_metrics) 
             tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
         if True:#FLAGS.save_model_freq > 0:
-            save_checkpoint(train_state, milestone=True)
+            print("Saving final checkpoint...")
 
+            save_checkpoint(train_state, milestone=True)
+    
+    jax.profiler.stop_trace()
 
 if __name__ == "__main__":
     mlxu.run(main)

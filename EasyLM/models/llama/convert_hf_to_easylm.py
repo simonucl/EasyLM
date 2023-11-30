@@ -82,6 +82,8 @@ def inverse_permute(params, w):
 
 def inverse_permute_kv(params, w):
     n_layers = params["n_layers"]
+    if "n_kv_heads" not in params:
+        params["n_kv_heads"] = params["n_heads"]        
     n_kv_heads = params["n_kv_heads"]
     n_heads = params["n_heads"]
     dim = params["dim"]

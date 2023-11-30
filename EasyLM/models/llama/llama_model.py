@@ -73,18 +73,6 @@ LLAMA_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
     },
-    '7bcode': {
-        'vocab_size': 32016,
-        'hidden_size': 4096,
-        'intermediate_size': 11008,
-        'num_hidden_layers': 32,
-        'num_attention_heads': 32,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-    },
     '13b': {
         'vocab_size': 32000,
         'hidden_size': 5120,
@@ -1385,20 +1373,26 @@ if __name__ == '__main__':
     from EasyLM.checkpoint import StreamingCheckpointer
     from EasyLM.jax_utils import JaxRNG, next_rng
     import torch
-    tokenizer = AutoTokenizer.from_pretrained('CodeLlama-34b-hf')
-    hf_model = AutoModelForCausalLM.from_pretrained('CodeLlama-34b-hf')
-    llama_config = LLaMAConfig.load_config('30b2')
+    tokenizer = AutoTokenizer.from_pretrained('/mnt/data/Llama-2-7b-hf')
+    hf_model = AutoModelForCausalLM.from_pretrained('/mnt/data/Llama-2-7b-hf')
+    print('Finished loading tokenizer')
+    llama_config = LLaMAConfig.load_config('7b')
     jax_model = FlaxLLaMAForCausalLMModule(
         llama_config, dtype=jnp.float32
     )
+    print('Finished loading model')
     checkpointer = checkpointer = StreamingCheckpointer(
         StreamingCheckpointer.get_default_config(), 'output',
         enable=jax.process_index() == 0,
     )
-    _, restored_params = checkpointer.load_trainstate_checkpoint('params::codellama_30b')
+    _, restored_params = checkpointer.load_trainstate_checkpoint('params::/mnt/data/EasyLM/model/easylm/Llama-2-7b-hf')
+    print('Finished loading params')
     inputs = tokenizer("What is 2+2?", return_tensors='jax').input_ids
     hf_logits = hf_model(torch.tensor(np.array(inputs))).logits
+    
     jax_logits = jax_model.apply(
         restored_params, inputs, deterministic=True,
     ).logits
+
+    print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
     import pdb; pdb.set_trace()
