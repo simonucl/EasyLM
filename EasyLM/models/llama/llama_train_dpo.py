@@ -54,6 +54,9 @@ FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
     logger=mlxu.WandBLogger.get_default_config(),
     log_all_worker=False,
     jax_distributed=JaxDistributedConfig.get_default_config(),
+    dpo_beta=0.1,
+    dpo_label_smoothing=0.0,  # label smoothing for constrained DPO
+    use_ipo=False,  # use IPO instead of DPO
 )
 
 
@@ -61,13 +64,24 @@ def dpo_loss(policy_chosen_logps: torch.FloatTensor,
              policy_rejected_logps: torch.FloatTensor,
              reference_chosen_logps: torch.FloatTensor,
              reference_rejected_logps: torch.FloatTensor,
-             beta: float):
+             beta: float,
+             label_smoothing: float = 0.0,
+             use_ipo: bool = False,):
     # modified from https://arxiv.org/pdf/2305.18290.pdf
     # also https://github.com/huggingface/trl/blob/main/trl/trainer/dpo_trainer.py#L375
     pi_logratios = policy_chosen_logps - policy_rejected_logps
     ref_logratios = reference_chosen_logps - reference_rejected_logps
+    logits = pi_logratios - ref_logratios
 
-    losses = -jax.nn.log_sigmoid(beta * (pi_logratios - ref_logratios))
+    # from https://github.com/eric-mitchell/direct-preference-optimization/blob/main/trainers.py
+    if use_ipo:
+        # Eq. 17 of https://arxiv.org/pdf/2310.12036v2.pdf
+        losses = (logits - 1/(2 * beta)) ** 2
+    else:
+        # Eq. 3 https://ericmitchell.ai/cdpo.pdf;
+        # label_smoothing=0 gives original DPO (Eq. 7 of https://arxiv.org/pdf/2305.18290.pdf)
+        losses = -jax.nn.log_sigmoid(beta * logits) * (1 - label_smoothing) - jax.nn.log_sigmoid(-beta * logits) * label_smoothing
+
     chosen_rewards = beta * jax.lax.stop_gradient(policy_chosen_logps - reference_chosen_logps)
     rejected_rewards = beta * jax.lax.stop_gradient(policy_rejected_logps - reference_rejected_logps)
 
@@ -81,7 +95,7 @@ def convert_logits_to_logps(logits, labels, loss_mask, label_pad_token_id):
     logits = logits[:, :-1]
     # set padding labels to 0
     labels = jnp.where(labels == label_pad_token_id, 0, labels)
-    
+
     per_token_logps = jnp.take_along_axis(jax.nn.log_softmax(logits, axis=-1), axis=2, indices=labels[:,:,None]).squeeze(2)
 
     return (per_token_logps * loss_mask).sum(-1)
@@ -104,7 +118,7 @@ def concatenated_forward(model, params, rng, batch, train=True):
     return chosen_logps, rejected_logps
 
 
-def dpo_forward(model, policy_params, reference_params, rng, batch, train=True):
+def dpo_forward(model, policy_params, reference_params, rng, batch, beta, label_smoothing=0.0, use_ipo=False, train=True):
     policy_chosen_logps, policy_rejected_logps = concatenated_forward(model, policy_params, rng, batch)
     # jax doesnt have a 'no grad' manager, but if we stop gradients through the logps, this should work.
     reference_chosen_logps, reference_rejected_logps = concatenated_forward(model, reference_params, rng, batch)
@@ -116,16 +130,18 @@ def dpo_forward(model, policy_params, reference_params, rng, batch, train=True):
         policy_rejected_logps,
         reference_chosen_logps,
         reference_rejected_logps,
-        beta=0.1  # TODO: make this a flag
+        beta=beta,
+        label_smoothing=label_smoothing,
+        use_ipo=use_ipo,
     )
 
     reward_accuracies = (chosen_rewards > rejected_rewards).astype(jnp.float32)
     metrics = {
         'loss': losses.mean(),
         'reward_accuracy': reward_accuracies.mean(),
-        'reward_chosen': chosen_rewards.mean(),
-        'reward_rejected': rejected_rewards.mean(),
-        'rewards_margins': (chosen_rewards - rejected_rewards).mean(),
+        'score_chosen': chosen_rewards.mean(),
+        'score_rejected': rejected_rewards.mean(),
+        'score_margin': (chosen_rewards - rejected_rewards).mean(),
     }
     return losses.mean(), metrics
 
@@ -214,7 +230,16 @@ def main(argv):
     def train_step(train_state, reference_train_state, rng, batch):
         rng_generator = JaxRNG(rng)
         batch = with_sharding_constraint(batch, PS(('dp', 'fsdp')))
-        loss_and_metrics = lambda params: dpo_forward(model, params, reference_train_state.params, rng_generator(llama_config.rng_keys()), batch)
+        loss_and_metrics = lambda params: dpo_forward(
+            model,
+            params,
+            reference_train_state.params,
+            rng_generator(llama_config.rng_keys()),
+            batch,
+            beta=FLAGS.dpo_beta,
+            label_smoothing=FLAGS.dpo_label_smoothing,
+            use_ipo=FLAGS.use_ipo,
+        )
         grad_fn = jax.value_and_grad(loss_and_metrics, has_aux=True)
         (_, metrics), grads = grad_fn(train_state.params)
         train_state = train_state.apply_gradients(grads=grads)
@@ -367,8 +392,7 @@ def main(argv):
             log_metrics.update(metrics)
             logger.log(log_metrics)
             tqdm.write("\n" + pprint.pformat(log_metrics) + "\n")
-        if True:#FLAGS.save_model_freq > 0:
-            save_checkpoint(train_state, milestone=True)
+        save_checkpoint(train_state, milestone=True)
 
 
 if __name__ == "__main__":
