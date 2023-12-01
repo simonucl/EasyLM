@@ -29,7 +29,7 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.lr=2e-5 \
     --optimizer.adamw_optimizer.end_lr=2e-5 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --optimizer.accumulate_gradient_steps=32 \
+    --optimizer.accumulate_gradient_steps=4 \
     --train_dataset.type='tulu_json_torch' \
     --num_epochs=2 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
@@ -38,6 +38,8 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.json_torch_dataset.batch_size=2 \
     --train_dataset.json_torch_dataset.num_workers=32 \
     --checkpointer.save_optimizer_state=True \
+    --llama.scan_attention=True \
+    --llama.scan_mlp=True \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="open_llama_7b" \

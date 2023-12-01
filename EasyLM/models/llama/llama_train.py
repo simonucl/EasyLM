@@ -114,6 +114,13 @@ def main(argv):
     if llama_config.vocab_size < wrapped_dataset.vocab_size:
         llama_config.update(dict(vocab_size=wrapped_dataset.vocab_size))
 
+    # add flash attention support
+    llama_config.update(dict(
+        scan_attention=FLAGS.llama.scan_attention,
+        scan_mlp=FLAGS.llama.scan_mlp,
+        )
+    )
+    
     model = FlaxLLaMAForCausalLMModule(
         llama_config, dtype=get_float_dtype_by_name(FLAGS.dtype)
     )
