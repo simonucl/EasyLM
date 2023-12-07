@@ -22,8 +22,8 @@ python -m EasyLM.models.llama.llama_train \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
-    --load_checkpoint='params::/mnt/data/EasyLM/model/easylm/Llama-2-7b-hf' \
-    --tokenizer.vocab_file='/mnt/data/Llama-2-7b-hf/tokenizer.model' \
+    --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
+    --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=2e-5 \
@@ -33,9 +33,9 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.type='tulu_json_torch' \
     --num_epochs=2 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
-    --train_dataset.json_torch_dataset.path='/mnt/data/EasyLM/data/processed/sharegpt/sharegpt_data.jsonl' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
-    --train_dataset.json_torch_dataset.batch_size=2 \
+    --train_dataset.json_torch_dataset.batch_size=16 \
     --train_dataset.json_torch_dataset.num_workers=32 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
@@ -43,8 +43,8 @@ python -m EasyLM.models.llama.llama_train \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="open_llama_7b" \
-    --logger.output_dir="/mnt/data/EasyLM/output" \
-    --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
+    --logger.output_dir="gs://data-selection-bucket/easylm/output" \
+    --logger.wandb_dir="gs://data-selection-bucket/easylm/experiment_logs/open_llama_7b" \
 |& tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \
