@@ -12,7 +12,16 @@ xs = jax.numpy.ones(jax.local_device_count())
 r = jax.pmap(lambda x: jax.lax.psum(x, 'i'), axis_name='i')(xs)
 
 # Print from a single host to avoid duplicated output
-if jax.process_index() == 0:
-    print('global device count:', jax.device_count())
-    print('local device count:', jax.local_device_count())
-    print('pmap result:', r)
+# if jax.process_index() == 0:
+print('global device count:', jax.device_count())
+print('local device count:', jax.local_device_count())
+print('pmap result:', r)
+
+#   gcloud compute tpus tpu-vm ssh data-selection-1 \
+#   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
+# cd EasyLM && \
+# python test.py"
+
+#   gcloud compute tpus tpu-vm ssh data-selection-1 \
+#   --zone=europe-west4-a --worker=all --command="cd EasyLM && \
+# bash scripts/tpu_vm_setup.sh"
