@@ -8,7 +8,7 @@ from tqdm import tqdm
 import mlxu
 from ml_collections import ConfigDict
 import numpy as np
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 import torch
 from torch.utils.data import DataLoader
 from transformers.data.data_collator import numpy_default_data_collator
@@ -477,13 +477,34 @@ class JsonTorchDataset(object):
         self._tokenizer = tokenizer
         self._text_processor = text_processor
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
-        dataset = load_dataset('json', data_files=self.config.path)
-        # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
-        self.dataset = dataset['train'].map(
-            self._process_sample,
-            batched=False,
-            num_proc=self.config.num_workers,
-            remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        if 'gs://' in self.config.path:
+            dataset = []
+            with mlxu.open_file(self.config.path, 'r') as fin:
+                for line in tqdm(fin, desc='Loading Dataset'):
+                    if not line or line == '\n':
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.decoder.JSONDecodeError:
+                        print(f'Error parsing json line:\n{line}')
+                        continue
+                    dataset.append(data)
+            
+            # load into huggingface dataset 
+            dataset = Dataset.from_list(dataset)
+            self.dataset = dataset.map(
+                self._process_sample,
+                batched=False,
+                num_proc=self.config.num_workers,
+                remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        else:
+            dataset = load_dataset('json', data_files=self.config.path)
+            # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
+            self.dataset = dataset['train'].map(
+                self._process_sample,
+                batched=False,
+                num_proc=self.config.num_workers,
+                remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
 
     def _json_iterator(self):
         with mlxu.open_file(self.config.path, 'r') as fin:
