@@ -491,7 +491,7 @@ class JsonTorchDataset(object):
                     dataset.append(data)
             # load into huggingface dataset 
             dataset = Dataset.from_list(dataset)
-            dataset = dataset.shard(num_shards=1000, index=0)
+            # dataset = dataset.shard(num_shards=1000, index=0)
             self.dataset = dataset.map(
                 self._process_sample,
                 batched=False,
