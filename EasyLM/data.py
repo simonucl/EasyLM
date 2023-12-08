@@ -478,7 +478,7 @@ class JsonTorchDataset(object):
         self._text_processor = text_processor
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
         dataset = load_dataset('json', data_files=self.config.path)
-        # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
+        dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
         self.dataset = dataset['train'].map(
             self._process_sample,
             batched=False,
