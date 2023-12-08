@@ -37,7 +37,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
-    --train_dataset.json_torch_dataset.num_workers=32 \
+    --train_dataset.json_torch_dataset.num_workers=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
     --llama.scan_mlp=True \
