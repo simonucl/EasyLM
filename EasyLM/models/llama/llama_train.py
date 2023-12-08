@@ -356,6 +356,4 @@ def main(argv):
     jax.profiler.stop_trace()
 
 if __name__ == "__main__":
-    if jax.process_index() == 0:
-        print("JAX process index 0, initializing...")
-        mlxu.run(main)
+    mlxu.run(main)
