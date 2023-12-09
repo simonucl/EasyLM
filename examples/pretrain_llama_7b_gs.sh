@@ -31,7 +31,7 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.lr=2e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-5 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --train_dataset.type='json_torch' \
+    --train_dataset.type='tulu_json_torch' \
     --num_epochs=2 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data.jsonl' \
