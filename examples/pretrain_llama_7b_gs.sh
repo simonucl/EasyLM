@@ -13,7 +13,7 @@ export WANDB_API_KEY='99c1cfcf5ab402b2d7df6da383d1645fe6da06b6'
 
 
 python -m EasyLM.models.llama.llama_train \
-    --mesh_dim='1,4,-1' \
+    --mesh_dim='1,2,-1' \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
