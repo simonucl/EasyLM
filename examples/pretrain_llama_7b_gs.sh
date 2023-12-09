@@ -26,10 +26,10 @@ python -m EasyLM.models.llama.llama_train \
     --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
-    --optimizer.accumulate_gradient_steps=8 \
+    --optimizer.accumulate_gradient_steps=4 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
-    --optimizer.adamw_optimizer.lr=2e-5 \
-    --optimizer.adamw_optimizer.end_lr=1e-5 \
+    --optimizer.adamw_optimizer.lr=1e-5 \
+    --optimizer.adamw_optimizer.end_lr=5e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
     --train_dataset.type='tulu_json_torch' \
     --num_epochs=2 \

@@ -466,6 +466,57 @@ class JsonDataset(object):
         return len(self.tokenizer)
 
 
+# class JsonProcessedDataset(JsonDataset):
+
+#     def parallel_example_iterator(self):
+#         for example, loc, index in self.json_iterator():
+#             yield (example, loc, index)
+
+#     def __iter__(self):
+#         chunk_size = self.config.batch_size * self.config.seq_length
+#         token_buffer = []
+#         loss_mask_buffer = []
+#         last_time = 0.0
+#         step_times = []
+#         start_time = time.time()
+#         start_tokens = self._total_tokens
+#         for tokens, loss_masks, loc, index in self.parallel_example_iterator():
+#             token_buffer.extend(tokens)
+#             loss_mask_buffer.extend(loss_masks)
+#             while len(token_buffer) > chunk_size + 1:
+#                 self._total_tokens += chunk_size
+#                 step_times.append(time.time() - last_time)
+#                 last_time = time.time()
+#                 if len(step_times) > self.config.throughput_average_window_size:
+#                     step_times = step_times[-self.config.throughput_average_window_size:]
+#                 average_throughput = chunk_size / np.mean(step_times)
+#                 accumulated_throughput = (
+#                     (self._total_tokens - start_tokens) / (time.time() - start_time)
+#                 )
+#                 metrics = {
+#                     'dataset_file_loc': loc,
+#                     'dataset_example_index': index,
+#                     'dataset_total_tokens': self._total_tokens,
+#                     'dataset_accumulated_tps': accumulated_throughput,
+#                     'dataset_average_tps': average_throughput,
+#                 }
+#                 batch = {
+#                     'input_tokens': np.array(token_buffer[:chunk_size], dtype=np.int32).reshape(
+#                         self.config.batch_size, -1
+#                     ),
+#                     'target_tokens': np.array(token_buffer[1:chunk_size + 1], dtype=np.int32).reshape(
+#                         self.config.batch_size, -1
+#                     ),
+#                     'loss_masks': np.array(loss_mask_buffer[1:chunk_size + 1], dtype=np.float32).reshape(
+#                         self.config.batch_size, -1
+#                     ),
+#                 }
+#                 if self.config.always_start_with_bos:
+#                     batch['input_tokens'][:, 0] = self.tokenizer.bos_token_id
+#                 yield batch, metrics
+#                 token_buffer = token_buffer[chunk_size:]
+#                 loss_mask_buffer = loss_mask_buffer[chunk_size:]
+
 class JsonTorchDataset(object):
     @staticmethod
     def get_default_config(updates=None):
@@ -487,64 +538,64 @@ class JsonTorchDataset(object):
 
     # def json_iterator(self):
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
-        fs = GCSFileSystem()
-        dataset = []
-        if 'gs://' in self.config.path:
-            with mlxu.open_file(self.config.path, 'r') as fin:
-                for line in tqdm(fin, desc='Loading Dataset'):
-                    if not line or line == '\n':
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.decoder.JSONDecodeError:
-                        print(f'Error parsing json line:\n{line}')
-                        continue
-                    dataset.append(data)
-            # load into huggingface dataset 
-            dataset = Dataset.from_list(dataset)
+        # fs = GCSFileSystem()
+        # dataset = []
+        # if 'gs://' in self.config.path:
+        #     with mlxu.open_file(self.config.path, 'r') as fin:
+        #         for line in tqdm(fin, desc='Loading Dataset'):
+        #             if not line or line == '\n':
+        #                 continue
+        #             try:
+        #                 data = json.loads(line)
+        #             except json.decoder.JSONDecodeError:
+        #                 print(f'Error parsing json line:\n{line}')
+        #                 continue
+        #             dataset.append(data)
+        #     # load into huggingface dataset 
+        #     dataset = Dataset.from_list(dataset)
             
-            if self.config.shard_num != 0:
-                for i in range(self.config.shard_num):
-                    shard_dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
-                    mapped_dataset = shard_dataset.map(
-                        self._process_sample,
-                        batched=False,
-                        num_proc=self.config.num_workers,
-                        remove_columns=[x for x in shard_dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],
-                        )
-                    # save the dataset as a json file to self.config.path
-                    save_path = self.config.path.replace('.jsonl', f'_processed_shard_{i}.jsonl')
-                    mapped_dataset.save_to_disk(save_path, fs=fs)
-                    del shard_dataset
-            else:
-                mapped_dataset = dataset.map(
-                    self._process_sample,
-                    batched=False,
-                    num_proc=self.config.num_workers,
-                    remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
-                # save the dataset as a json file to self.config.path
-                save_path = self.config.path.replace('.jsonl', f'_processed_{self.config.shard_num}.jsonl')
-                mapped_dataset.save_to_disk(save_path, fs=fs)
+        #     if self.config.shard_num != 0:
+        #         for i in range(self.config.shard_num):
+        #             shard_dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
+        #             mapped_dataset = shard_dataset.map(
+        #                 self._process_sample,
+        #                 batched=False,
+        #                 num_proc=self.config.num_workers,
+        #                 remove_columns=[x for x in shard_dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],
+        #                 )
+        #             # save the dataset as a json file to self.config.path
+        #             save_path = self.config.path.replace('.jsonl', f'_processed_shard_{i}.jsonl')
+        #             mapped_dataset.save_to_disk(save_path, fs=fs)
+        #             del shard_dataset
+        #     else:
+        #         mapped_dataset = dataset.map(
+        #             self._process_sample,
+        #             batched=False,
+        #             num_proc=self.config.num_workers,
+        #             remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        #         # save the dataset as a json file to self.config.path
+        #         save_path = self.config.path.replace('.jsonl', f'_processed_{self.config.shard_num}.jsonl')
+        #         mapped_dataset.save_to_disk(save_path, fs=fs)
             
 
-            import sys
-            sys.exit(1)
+        #     import sys
+        #     sys.exit(1)
 
-            dataset = dataset.shard(num_shards=3, index=0)
-            self.dataset = dataset.map(
-                self._process_sample,
-                batched=False,
-                num_proc=self.config.num_workers,
-                remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        dataset = dataset.shard(num_shards=3, index=0)
+        self.dataset = dataset.map(
+            self._process_sample,
+            batched=False,
+            num_proc=self.config.num_workers,
+            remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
             
-        else:
-            dataset = load_dataset('json', data_files=self.config.path)
-            # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
-            self.dataset = dataset['train'].map(
-                self._process_sample,
-                batched=False,
-                num_proc=self.config.num_workers,
-                remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        # else:
+            # dataset = load_dataset('json', data_files=self.config.path)
+            # # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
+            # self.dataset = dataset['train'].map(
+            #     self._process_sample,
+            #     batched=False,
+            #     num_proc=self.config.num_workers,
+            #     remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
         
     def _json_iterator(self):
         with mlxu.open_file(self.config.path, 'r') as fin:
