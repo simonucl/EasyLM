@@ -504,12 +504,12 @@ class JsonTorchDataset(object):
             dataset = Dataset.from_list(dataset)
             if self.config.shard_num != 0:
                 for i in range(self.config.shard_num):
-                    dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
-                    mapped_dataset = dataset.map(
+                    shard_dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
+                    mapped_dataset = shard_dataset.map(
                         self._process_sample,
                         batched=False,
                         num_proc=self.config.num_workers,
-                        remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+                        remove_columns=[x for x in shard_dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
                     # save the dataset as a json file to self.config.path
                     save_path = self.config.path.replace('.jsonl', f'_processed_shard_{i}.jsonl')
                     mapped_dataset.save_to_disk(save_path, fs=fs)
@@ -522,7 +522,7 @@ class JsonTorchDataset(object):
                 # save the dataset as a json file to self.config.path
                 save_path = self.config.path.replace('.jsonl', f'_processed_{self.config.shard_num}.jsonl')
                 mapped_dataset.save_to_disk(save_path, fs=fs)
-                del dataset
+            del dataset
 
             import sys
             sys.exit(1)
