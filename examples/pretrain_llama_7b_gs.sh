@@ -38,6 +38,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
+    --train_dataset.json_torch_dataset.shard_num=3 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
     --llama.scan_mlp=True \
