@@ -538,8 +538,8 @@ class JsonTorchDataset(object):
 
     # def json_iterator(self):
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
-        # fs = GCSFileSystem()
-        # dataset = []
+        fs = GCSFileSystem()
+        dataset = []
         if 'gs://' in self.config.path:
             with mlxu.open_file(self.config.path, 'r') as fin:
                 for line in tqdm(fin, desc='Loading Dataset'):
