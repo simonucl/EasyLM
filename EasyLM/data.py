@@ -12,6 +12,7 @@ from datasets import load_dataset, Dataset
 import torch
 from torch.utils.data import DataLoader
 from transformers.data.data_collator import numpy_default_data_collator
+from gcsfs import GCSFileSystem
 
 class DatasetFactory(object):
     """ Datset builder class. """
@@ -74,6 +75,12 @@ class DatasetFactory(object):
             )
         else:
             raise ValueError(f'Unknown dataset type: {config.type}')
+
+    @staticmethod
+    def save_dataset(dataset, path):
+        # check if dataset is a torch dataloader
+        if isinstance(dataset, DataLoader):
+            dataset = dataset.dataset
 
     def __init__(self):
         raise ValueError('DatasetFactory is a static class and should not be instantiated.')
@@ -467,6 +474,7 @@ class JsonTorchDataset(object):
         config.seq_length = 1024
         config.batch_size = 8
         config.num_workers = 8
+        config.shard_num = 0
 
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
@@ -476,9 +484,11 @@ class JsonTorchDataset(object):
         self.config = self.get_default_config(config)
         self._tokenizer = tokenizer
         self._text_processor = text_processor
+
+    # def json_iterator(self):
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
+        fs = GCSFileSystem()
         if 'gs://' in self.config.path:
-            dataset = []
             with mlxu.open_file(self.config.path, 'r') as fin:
                 for line in tqdm(fin, desc='Loading Dataset'):
                     if not line or line == '\n':
@@ -488,9 +498,34 @@ class JsonTorchDataset(object):
                     except json.decoder.JSONDecodeError:
                         print(f'Error parsing json line:\n{line}')
                         continue
-                    dataset.append(data)
+                    yield data
             # load into huggingface dataset 
             dataset = Dataset.from_list(dataset)
+            if self.config.shard_num != 0:
+                for i in range(self.config.shard_num):
+                    dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
+                    mapped_dataset = dataset.map(
+                        self._process_sample,
+                        batched=False,
+                        num_proc=self.config.num_workers,
+                        remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+                    # save the dataset as a json file to self.config.path
+                    save_path = self.config.path.replace('.jsonl', f'_processed_shard_{i}.jsonl')
+                    mapped_dataset.save_to_disk(save_path, fs=fs)
+            else:
+                mapped_dataset = dataset.map(
+                    self._process_sample,
+                    batched=False,
+                    num_proc=self.config.num_workers,
+                    remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+                # save the dataset as a json file to self.config.path
+                save_path = self.config.path.replace('.jsonl', f'_processed_{self.config.shard_num}.jsonl')
+                mapped_dataset.save_to_disk(save_path, fs=fs)
+                del dataset
+                
+            import sys
+            sys.exit(1)
+
             dataset = dataset.shard(num_shards=3, index=0)
             self.dataset = dataset.map(
                 self._process_sample,
