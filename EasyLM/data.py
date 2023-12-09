@@ -507,7 +507,7 @@ class JsonTorchDataset(object):
                 batched=False,
                 num_proc=self.config.num_workers,
                 remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],
-                save_in_memory=False,
+                keep_in_memory=False,
                 cache_file_name=f'{self.config.path.replace("gs://", "").replace("/", "_")}_processed',
                 )
             
