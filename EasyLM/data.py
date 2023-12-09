@@ -488,6 +488,7 @@ class JsonTorchDataset(object):
     # def json_iterator(self):
         # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
         fs = GCSFileSystem()
+        dataset = []
         if 'gs://' in self.config.path:
             with mlxu.open_file(self.config.path, 'r') as fin:
                 for line in tqdm(fin, desc='Loading Dataset'):
@@ -498,7 +499,7 @@ class JsonTorchDataset(object):
                     except json.decoder.JSONDecodeError:
                         print(f'Error parsing json line:\n{line}')
                         continue
-                    yield data
+                    dataset.append(data)
             # load into huggingface dataset 
             dataset = Dataset.from_list(dataset)
             if self.config.shard_num != 0:
@@ -522,7 +523,7 @@ class JsonTorchDataset(object):
                 save_path = self.config.path.replace('.jsonl', f'_processed_{self.config.shard_num}.jsonl')
                 mapped_dataset.save_to_disk(save_path, fs=fs)
                 del dataset
-                
+
             import sys
             sys.exit(1)
 
