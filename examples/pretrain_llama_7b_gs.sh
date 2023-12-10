@@ -49,7 +49,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="open_llama_7b" \
-    --logger.output_dir="gs://data-selection-bucket/easylm/output" \
+    --logger.output_dir="$HOME/EasyLM/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
     --log_all_worker=True
 | & tee $HOME/output.txt
