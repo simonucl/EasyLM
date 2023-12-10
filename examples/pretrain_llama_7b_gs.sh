@@ -8,6 +8,8 @@
 # Put your WANDB API key here to enable logging to wandb.
 export WANDB_API_KEY='99c1cfcf5ab402b2d7df6da383d1645fe6da06b6'
 
+git config --global credential.helper store
+
 huggingface-cli login --token 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
 
 # TPU specific flags to improve training throughput
