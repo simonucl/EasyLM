@@ -21,9 +21,9 @@ python -m EasyLM.models.llama.llama_train \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
-    --log_freq=50 \
+    --log_freq=100 \
     --save_model_freq=0 \
-    --save_milestone_freq=250 \
+    --save_milestone_freq=100 \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
@@ -49,7 +49,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="open_llama_7b" \
-    --logger.output_dir="$HOME/EasyLM/output" \
+    --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
     --log_all_worker=True
 | & tee $HOME/output.txt
