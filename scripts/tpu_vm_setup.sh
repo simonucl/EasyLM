@@ -25,7 +25,7 @@ einops
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.0.1
 transformers==4.31.0
-datasets==2.14.2
+datasets
 huggingface_hub==0.16.4
 tqdm
 h5py
