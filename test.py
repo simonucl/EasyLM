@@ -1,5 +1,8 @@
 # The following code snippet will be run on all TPU hosts
 import jax
+from datasets import load_dataset
+
+dataset = load_dataset("arazd/tulu_stanford_alpaca", None, split="train")
 
 # The total number of TPU cores in the Pod
 device_count = jax.device_count()
@@ -33,12 +36,12 @@ print('pmap result:', r)
 
 # run the pretraining script
 
-# gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+# nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
 # cd EasyLM && \
 # git pull && \
 # mkdir -p output && \
-# bash examples/pretrain_llama_7b_gs.sh"
+# bash examples/pretrain_llama_7b_gs.sh" > logs/pretrain_llama_7b_gs.log 2>&1 &
 
 # nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
