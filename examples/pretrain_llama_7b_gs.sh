@@ -13,7 +13,7 @@ export WANDB_API_KEY='99c1cfcf5ab402b2d7df6da383d1645fe6da06b6'
 
 
 python -m EasyLM.models.llama.llama_train \
-    --mesh_dim='1,1,-1' \
+    --mesh_dim='1,2,-1' \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
@@ -26,17 +26,18 @@ python -m EasyLM.models.llama.llama_train \
     --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
+    --optimizer.accumulate_gradient_steps=4 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --train_dataset.type='json_processed' \
+    --train_dataset.type='huggingface' \
     --num_epochs=2 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
-    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
-    --train_dataset.json_torch_dataset.seq_length=4096 \
-    --train_dataset.json_torch_dataset.batch_size=2 \
-    --train_dataset.json_torch_dataset.num_workers=24 \
+    --train_dataset.huggingface_dataset.path='arazd/tulu_stanford_alpaca' \
+    --train_dataset.huggingface_dataset.seq_length=4096 \
+    --train_dataset.huggingface_dataset.batch_size=4 \
+    --train_dataset.huggingface_dataset.split=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
     --llama.scan_mlp=True \
@@ -53,3 +54,11 @@ python -m EasyLM.models.llama.llama_train \
 # nohup bash examples/pretrain_llama_7b.sh > logs/pretrain_llama_7b.log 2>&1 &
 
 # nohup gsutil -m cp -r /mnt/data/Llama-2-7b-hf gs://data-selection-bucket > gsutil.log 2>&1 &
+
+#     --train_dataset.type='json_processed' \
+    # --num_epochs=2 \
+    # --train_dataset.text_processor.fields='[question+prompt],answer' \
+    # --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
+    # --train_dataset.json_torch_dataset.seq_length=4096 \
+    # --train_dataset.json_torch_dataset.batch_size=4 \
+    # --train_dataset.json_torch_dataset.num_workers=24 \
