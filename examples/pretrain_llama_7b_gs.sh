@@ -23,14 +23,14 @@ python -m EasyLM.models.llama.llama_train \
     --total_steps=250000 \
     --log_freq=50 \
     --save_model_freq=0 \
-    --save_milestone_freq=5000 \
+    --save_milestone_freq=250 \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
     --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
-    --optimizer.accumulate_gradient_steps=4 \
+    --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
@@ -41,7 +41,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.tulu_hf_torch_dataset.path='arazd/tulu_stanford_alpaca' \
     --train_dataset.tulu_hf_torch_dataset.seq_length=2048 \
     --train_dataset.tulu_hf_torch_dataset.name='' \
-    --train_dataset.tulu_hf_torch_dataset.batch_size=4 \
+    --train_dataset.tulu_hf_torch_dataset.batch_size=8 \
     --train_dataset.tulu_hf_torch_dataset.split='train' \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
@@ -52,7 +52,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.output_dir="$HOME/EasyLM/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
     --log_all_worker=True
-|& tee $HOME/output.txt
+| & tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \
     # --train_dataset.json_dataset.path='/path/to/shuffled/redpajama/dataset' \
