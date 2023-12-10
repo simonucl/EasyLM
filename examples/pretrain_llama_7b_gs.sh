@@ -36,8 +36,9 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.huggingface_dataset.path='arazd/tulu_stanford_alpaca' \
     --train_dataset.huggingface_dataset.seq_length=4096 \
+    --train_dataset.huggingface_dataset.name='' \
     --train_dataset.huggingface_dataset.batch_size=4 \
-    --train_dataset.huggingface_dataset.split=24 \
+    --train_dataset.huggingface_dataset.split='train' \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
     --llama.scan_mlp=True \
