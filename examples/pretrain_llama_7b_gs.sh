@@ -39,7 +39,7 @@ python -m EasyLM.models.llama.llama_train \
     --num_epochs=2 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.tulu_hf_torch_dataset.path='arazd/tulu_stanford_alpaca' \
-    --train_dataset.tulu_hf_torch_dataset.seq_length=4096 \
+    --train_dataset.tulu_hf_torch_dataset.seq_length=2048 \
     --train_dataset.tulu_hf_torch_dataset.name='' \
     --train_dataset.tulu_hf_torch_dataset.batch_size=4 \
     --train_dataset.tulu_hf_torch_dataset.split='train' \
