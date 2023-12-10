@@ -172,6 +172,9 @@ def main(argv):
 
     def train_step(train_state, rng, batch):
         rng_generator = JaxRNG(rng)
+        print('Input tokens len', len(batch['input_tokens']))
+        print('Input tokens shape', batch['input_tokens'].shape)
+        
         batch = with_sharding_constraint(batch, PS(('dp', 'fsdp')))
         def loss_and_accuracy(params):
             logits = model.apply(

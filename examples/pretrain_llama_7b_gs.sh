@@ -13,7 +13,7 @@ export WANDB_API_KEY='99c1cfcf5ab402b2d7df6da383d1645fe6da06b6'
 
 
 python -m EasyLM.models.llama.llama_train \
-    --mesh_dim='1,2,-1' \
+    --mesh_dim='1,1,-1' \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
@@ -36,7 +36,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
-    --train_dataset.json_torch_dataset.batch_size=4 \
+    --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
