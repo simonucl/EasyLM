@@ -667,20 +667,20 @@ class JsonProcessedDataset(JsonTorchDataset):
         self._tokenizer = tokenizer
         self._text_processor = text_processor
 
-        dataset = []
-        if 'gs://' in self.config.path:
-            with mlxu.open_file(self.config.path, 'r') as fin:
-                for line in tqdm(fin, desc='Loading Dataset'):
-                    if not line or line == '\n':
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.decoder.JSONDecodeError:
-                        print(f'Error parsing json line:\n{line}')
-                        continue
-                    dataset.append(data)
-            # load into huggingface dataset 
-            dataset = Dataset.from_list(dataset)
+        dataset = Dataset.load_from_disk(self.config.path, fs=GCSFileSystem())
+        # if 'gs://' in self.config.path:
+        #     with mlxu.open_file(self.config.path, 'r') as fin:
+        #         for line in tqdm(fin, desc='Loading Dataset'):
+        #             if not line or line == '\n':
+        #                 continue
+        #             try:
+        #                 data = json.loads(line)
+        #             except json.decoder.JSONDecodeError:
+        #                 print(f'Error parsing json line:\n{line}')
+        #                 continue
+        #             dataset.append(data)
+        #     # load into huggingface dataset 
+        #     dataset = Dataset.from_list(dataset)
         self.dataset = dataset
 
 class TuluJsonTorchDataset(JsonTorchDataset):

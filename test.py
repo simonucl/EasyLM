@@ -17,11 +17,63 @@ print('global device count:', jax.device_count())
 print('local device count:', jax.local_device_count())
 print('pmap result:', r)
 
-#   gcloud compute tpus tpu-vm ssh data-selection-1 \
+# Creation
+# gcloud compute tpus tpu-vm create data-selection-v3-32 --zone=europe-west4-a --accelerator-type=v3-32 --version=tpu-vm-base --preemptible
+
+# Deletion
+# gcloud compute tpus tpu-vm delete data-selection-v3-32 --zone=europe-west4-a
+
+# set up the TPU VM
+
+# nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=all --command="git clone https://github.com/simonucl/EasyLM.git && \
+# cd EasyLM && \
+# bash scripts/tpu_vm_setup.sh" > logs/tpu_vm_setup.log 2>&1 &
+
+
+# run the pretraining script
+
+# gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
 # cd EasyLM && \
-# python test.py"
+# git pull && \
+# mkdir -p output && \
+# bash examples/pretrain_llama_7b_gs.sh"
 
-#   gcloud compute tpus tpu-vm ssh data-selection-1 \
+# nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
+# top -b -n 1 | grep python" > logs/top.log 2>&1 &
+
+# test the TPU VM
+# nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
+# cd EasyLM && \
+# git pull && \
+# python test.py" > logs/test.log 2>&1 &
+
+# ssh into the TPU VM
+# gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=0
+
+# kill the TPU VM
+# gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
+# ps -ef | grep 'python -m' | grep -v grep | tr -s ' ' | cut -d ' ' -f 2 | while read pid; do kill -9 $pid; done"
+
+
+
+# convert the above code to nohup ran in the background
+# nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
+#   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
+# cd EasyLM && \
+# git pull && \
+# mkdir -p output && \
+
+
+# bash examples/pretrain_llama_7b_gs.sh"
+
+# nohup bash examples/pretrain_llama_7b_gs.sh > logs/pretrain_llama_7b_gs.log 2>&1 &"
+
+#   gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="cd EasyLM && \
 # bash scripts/tpu_vm_setup.sh"
