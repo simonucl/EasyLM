@@ -25,7 +25,6 @@ class DatasetFactory(object):
         config.huggingface_dataset = HuggingfaceDataset.get_default_config()
         config.json_dataset = JsonDataset.get_default_config()
         config.json_torch_dataset = JsonTorchDataset.get_default_config()
-        config.json_processed_dataset = JsonProcessedDataset.get_default_config()
         
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
