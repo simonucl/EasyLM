@@ -41,7 +41,16 @@ class DatasetFactory(object):
         elif config.type == 'json':
             return JsonDataset(config.json_dataset, tokenizer, text_processor, **kwargs)
         elif config.type == 'json_processed':
-            return JsonProcessedDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            torch.manual_seed(42)
+            dataset = JsonProcessedDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            return DataLoader(
+                dataset,
+                batch_size=config.json_torch_dataset.batch_size,
+                num_workers=config.json_torch_dataset.num_workers,
+                shuffle=True,
+                collate_fn=numpy_default_data_collator,
+                drop_last=True  # sometimes batch doesnt split across tpu well.
+            )
         elif config.type == 'json_torch':
             torch.manual_seed(42)
             dataset = JsonTorchDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
