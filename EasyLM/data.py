@@ -25,7 +25,8 @@ class DatasetFactory(object):
         config.huggingface_dataset = HuggingfaceDataset.get_default_config()
         config.json_dataset = JsonDataset.get_default_config()
         config.json_torch_dataset = JsonTorchDataset.get_default_config()
-        
+        config.tulu_hf_torch_dataset = TuluHFTorchDataset.get_default_config()
+
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
         return config
@@ -69,6 +70,17 @@ class DatasetFactory(object):
                 dataset,
                 batch_size=config.json_torch_dataset.batch_size,
                 num_workers=config.json_torch_dataset.num_workers,
+                shuffle=True,
+                collate_fn=numpy_default_data_collator,
+                drop_last=True  # sometimes batch doesnt split across tpu well.
+            )
+        elif config.type == 'tulu_hf_torch':
+            torch.manual_seed(42)
+            dataset = TuluHFTorchDataset(config.tulu_hf_torch_dataset, tokenizer, text_processor, **kwargs)
+            return DataLoader(
+                dataset,
+                batch_size=config.tulu_hf_torch_dataset.batch_size,
+                num_workers=config.tulu_hf_torch_dataset.num_workers,
                 shuffle=True,
                 collate_fn=numpy_default_data_collator,
                 drop_last=True  # sometimes batch doesnt split across tpu well.
@@ -768,7 +780,40 @@ class TuluJsonTorchDataset(JsonTorchDataset):
         attention_mask = torch.ones_like(input_ids)
         return input_ids.flatten(), labels.flatten(), attention_mask.flatten()
     
+class TuluHFTorchDataset(TuluJsonTorchDataset):
+    @staticmethod
+    def get_default_config(updates=None):
+        config = ConfigDict()
+        config.path = 'c4'
+        config.name = 'en'
+        config.split = 'train'
+        config.streaming = False
+        config.seq_length = 1024
+        config.batch_size = 8
+        config.num_workers = 8
+        config.always_start_with_bos = False
+        config.batch_token_dtype = 'i4'
 
+        if updates is not None:
+            config.update(ConfigDict(updates).copy_and_resolve_references())
+        return config
+
+    def __init__(self, config, tokenizer, text_processor):
+        self.config = self.get_default_config(config)
+        name = self.config.name if self.config.name != '' else None
+        split = self.config.split if self.config.split != '' else None
+        self._tokenizer = tokenizer
+        self._text_processor = text_processor
+        self._dataset = load_dataset(
+            self.config.path, name, split=split, streaming=self.config.streaming
+        )
+        self.dataset = self._dataset.map(
+            self._process_sample,
+            batched=False,
+            num_proc=self.config.num_workers,
+            remove_columns=[x for x in self._dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],
+        )
+        
 # for processing preference-style datasets
 # expect: a jsonl file with each line being a json object with the following fields:
 #   - prompt: the initial prompt **with whitespace at the end**
