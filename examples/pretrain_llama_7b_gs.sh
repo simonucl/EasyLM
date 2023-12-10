@@ -26,7 +26,6 @@ python -m EasyLM.models.llama.llama_train \
     --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
-    --optimizer.accumulate_gradient_steps=4 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
@@ -36,7 +35,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
-    --train_dataset.json_torch_dataset.batch_size=8 \
+    --train_dataset.json_torch_dataset.batch_size=2 \
     --train_dataset.json_torch_dataset.num_workers=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
