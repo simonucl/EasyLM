@@ -21,9 +21,9 @@ python -m EasyLM.models.llama.llama_train \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
-    --log_freq=50 \
+    --log_freq=256 \
     --save_model_freq=0 \
-    --save_milestone_freq=1000 \
+    --save_milestone_freq=1024 \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
@@ -35,14 +35,13 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --train_dataset.type='tulu_hf_torch' \
-    --num_epochs=5 \
+    --num_epochs=3 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
-    --train_dataset.tulu_hf_torch_dataset.path='arazd/tulu_stanford_alpaca' \
-    --train_dataset.tulu_hf_torch_dataset.seq_length=4096 \
-    --train_dataset.tulu_hf_torch_dataset.name='' \
-    --train_dataset.tulu_hf_torch_dataset.batch_size=8 \
-    --train_dataset.tulu_hf_torch_dataset.split='train' \
+    --train_dataset.type='json_processed' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
+    --train_dataset.json_torch_dataset.seq_length=4096 \
+    --train_dataset.json_torch_dataset.batch_size=8 \
+    --train_dataset.json_torch_dataset.num_workers=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
     --llama.scan_mlp=True \
@@ -61,10 +60,17 @@ python -m EasyLM.models.llama.llama_train \
 
 # nohup gsutil -m cp -r /mnt/data/Llama-2-7b-hf gs://data-selection-bucket > gsutil.log 2>&1 &
 
-#     --train_dataset.type='json_processed' \
+    # --train_dataset.type='json_processed' \
     # --num_epochs=2 \
     # --train_dataset.text_processor.fields='[question+prompt],answer' \
     # --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     # --train_dataset.json_torch_dataset.seq_length=4096 \
     # --train_dataset.json_torch_dataset.batch_size=4 \
     # --train_dataset.json_torch_dataset.num_workers=24 \
+
+#     --train_dataset.type='tulu_hf_torch' \
+    # --train_dataset.tulu_hf_torch_dataset.path='arazd/tulu_stanford_alpaca' \
+    # --train_dataset.tulu_hf_torch_dataset.seq_length=4096 \
+    # --train_dataset.tulu_hf_torch_dataset.name='' \
+    # --train_dataset.tulu_hf_torch_dataset.batch_size=8 \
+    # --train_dataset.tulu_hf_torch_dataset.split='train' \
