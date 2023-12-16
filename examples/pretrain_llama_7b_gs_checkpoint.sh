@@ -27,7 +27,7 @@ python -m EasyLM.models.llama.llama_train \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
-    --load_checkpoint='trainstate_params::gs://data-selection-bucket/easylm/output/debeb76e3f344d5fab9225cee46ddd9f/streaming_train_state_22132' \
+    --load_checkpoint='trainstate::gs://data-selection-bucket/easylm/output/cd5d95bf3d6b4aa2b8c1deeb3ee61cbf/streaming_train_state_12288' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
     --optimizer.accumulate_gradient_steps=8 \
