@@ -27,12 +27,12 @@ python -m EasyLM.models.llama.llama_train \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
-    --load_checkpoint='trainstate_params::gs://data-selection-bucket/easylm/output/70426030d2534636a382d2f466a14aba/streaming_train_state_29300' \
+    --load_checkpoint='trainstate::gs://data-selection-bucket/easylm/output/3b8f6401b83c41f4bc8462a95c460e1d/streaming_train_state_12288' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
     --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
-    --optimizer.adamw_optimizer.lr=8e-6 \
+    --optimizer.adamw_optimizer.lr=7e-6 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.00 \
     --num_epochs=2 \
