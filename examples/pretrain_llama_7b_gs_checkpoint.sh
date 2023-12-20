@@ -50,7 +50,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.project="open_llama_7b" \
     --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
-    --log_all_worker=True
+    --log_all_worker=False
 | & tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \
