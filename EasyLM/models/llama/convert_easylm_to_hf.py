@@ -134,6 +134,7 @@ def write_json(text, path):
 
 def write_model(loaded, model_path, model_size):
     print(loaded.keys())
+    print("Converting the checkpoint to the Llama format.")
     os.makedirs(model_path, exist_ok=True)
     tmp_model_path = os.path.join(model_path, "tmp")
     os.makedirs(tmp_model_path, exist_ok=True)

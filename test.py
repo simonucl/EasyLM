@@ -62,7 +62,6 @@ print('pmap result:', r)
 # ps -ef | grep 'python -m' | grep -v grep | tr -s ' ' | cut -d ' ' -f 2 | while read pid; do kill -9 $pid; done"
 
 
-
 # convert the above code to nohup ran in the background
 # nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
