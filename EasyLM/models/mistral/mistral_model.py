@@ -1116,8 +1116,8 @@ class FlaxMistralModule(nn.Module):
         #     base=self.config.rope_theta,
         #     **initial_rope_kwargs
         # )
-        self.causal_mask = nn.make_causal_mask(
-            jnp.ones((1, self.config.c_max_position_embeddings), dtype='i4'))
+        # self.causal_mask = nn.make_causal_mask(
+        #     jnp.ones((1, self.config.c_max_position_embeddings), dtype='i4'))
         
     def __call__(
         self,
