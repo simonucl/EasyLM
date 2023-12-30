@@ -1494,7 +1494,7 @@ if __name__ == '__main__':
     from EasyLM.jax_utils import JaxRNG, next_rng
     import torch
     tokenizer = AutoTokenizer.from_pretrained('/mnt/data/model/Mistral-7B-v0.1')
-    hf_model = AutoModelForCausalLM.from_pretrained('/mnt/data/model/Mistral-7B-v0.1')
+    # hf_model = AutoModelForCausalLM.from_pretrained('/mnt/data/model/Mistral-7B-v0.1')
     print('Finished loading tokenizer')
     mistral_config = MistralConfig.load_config('7b')
     jax_model = FlaxMistralForCausalLMModule(
@@ -1505,14 +1505,16 @@ if __name__ == '__main__':
         StreamingCheckpointer.get_default_config(), 'output',
         enable=jax.process_index() == 0,
     )
-    _, restored_params = checkpointer.load_trainstate_checkpoint('params::/mnt/data/EasyLM/model/easylm/Mistral-7b')
+    _, restored_params = checkpointer.load_trainstate_checkpoint('params::gs://data-selection-bucket/easylm/Mistral-7b')
     print('Finished loading params')
     inputs = tokenizer("What is 2+2?", return_tensors='jax').input_ids
-    hf_logits = hf_model(torch.tensor(np.array(inputs))).logits
+    # hf_logits = hf_model(torch.tensor(np.array(inputs))).logits
     
     jax_logits = jax_model.apply(
         restored_params, inputs, deterministic=True,
     ).logits
 
-    print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
-    import pdb; pdb.set_trace()
+    print(jax_logits.shape)
+
+    # print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
+    # import pdb; pdb.set_trace()
