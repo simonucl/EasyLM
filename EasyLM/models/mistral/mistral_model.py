@@ -1100,9 +1100,9 @@ class FlaxMistralModule(nn.Module):
             param_dtype=self.param_dtype
         )
 
-        initial_rope_kwargs = dict(
-            rope_type="none"
-        )
+        # initial_rope_kwargs = dict(
+        #     rope_type="none"
+        # )
         # if self.config.rope_scaling is not None:
         #     scaling_type = self.config.rope_scaling["type"]
         #     scaling_factor = self.config.rope_scaling["factor"]
@@ -1155,7 +1155,7 @@ class FlaxMistralModule(nn.Module):
         hidden_states = self.dropout(input_embeds, deterministic=deterministic)
 
         outputs = self.h(
-            hidden_state=hidden_states,
+            hidden_states=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
             # freq_cis=self.freq_cis,
