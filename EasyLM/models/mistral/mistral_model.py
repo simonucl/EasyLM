@@ -1493,7 +1493,7 @@ if __name__ == '__main__':
     from EasyLM.checkpoint import StreamingCheckpointer
     from EasyLM.jax_utils import JaxRNG, next_rng
     import torch
-    tokenizer = AutoTokenizer.from_pretrained('/mnt/data/model/Mistral-7B-v0.1')
+    tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
     # hf_model = AutoModelForCausalLM.from_pretrained('/mnt/data/model/Mistral-7B-v0.1')
     print('Finished loading tokenizer')
     mistral_config = MistralConfig.load_config('7b')
