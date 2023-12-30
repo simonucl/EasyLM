@@ -175,35 +175,35 @@ MISTRAL_STANDARD_CONFIGS = {
     },
 }
 
-def precompute_freq_cis(
-        dim, max_position_embeddings=2048, base=10000, scaling_factor=1.0, rope_type: str | None = None
-):
-    if rope_type == "none":
-        rope_type = None
-    assert rope_type in [
-        "linear",
-        "dynamic",
-        None
-    ], "wrong rope type has been given"
-    t = jax.numpy.arange(max_position_embeddings)
+# def precompute_freq_cis(
+#         dim, max_position_embeddings=2048, base=10000, scaling_factor=1.0, rope_type: str | None = None
+# ):
+#     if rope_type == "none":
+#         rope_type = None
+#     assert rope_type in [
+#         "linear",
+#         "dynamic",
+#         None
+#     ], "wrong rope type has been given"
+#     t = jax.numpy.arange(max_position_embeddings)
 
-    if rope_type == "linear":
-        t = t / scaling_factor
+#     if rope_type == "linear":
+#         t = t / scaling_factor
 
-    if rope_type == "dynamic":
-        base = base * (
-                scaling_factor - (scaling_factor - 1)
-        ) ** (dim / (dim - 2))
+#     if rope_type == "dynamic":
+#         base = base * (
+#                 scaling_factor - (scaling_factor - 1)
+#         ) ** (dim / (dim - 2))
 
-    inv_freq = 1.0 / (
-            base ** (jax.numpy.arange(0, dim, 2, dtype=jax.numpy.float32) / dim)
-    )
-    freq = jax.numpy.einsum(
-        "i , j -> i j", t, inv_freq
-    ).astype("float32")
+#     inv_freq = 1.0 / (
+#             base ** (jax.numpy.arange(0, dim, 2, dtype=jax.numpy.float32) / dim)
+#     )
+#     freq = jax.numpy.einsum(
+#         "i , j -> i j", t, inv_freq
+#     ).astype("float32")
 
-    embed = jax.numpy.concatenate((freq, freq), axis=-1)
-    return jax.numpy.sin(embed)[:, :], jax.numpy.cos(embed)[:, :]
+#     embed = jax.numpy.concatenate((freq, freq), axis=-1)
+#     return jax.numpy.sin(embed)[:, :], jax.numpy.cos(embed)[:, :]
 
 class MistralConfig(PretrainedConfig):
     r"""
@@ -1110,12 +1110,12 @@ class FlaxMistralModule(nn.Module):
                 scaling_factor=scaling_factor,
                 rope_type=scaling_type
             )
-        self.freq_cis = precompute_freq_cis(
-            max_position_embeddings=self.config.max_position_embeddings,
-            dim=self.config.hidden_size // self.config.num_attention_heads,
-            base=self.config.rope_theta,
-            **initial_rope_kwargs
-        )
+        # self.freq_cis = precompute_freq_cis(
+        #     max_position_embeddings=self.config.max_position_embeddings,
+        #     dim=self.config.hidden_size // self.config.num_attention_heads,
+        #     base=self.config.rope_theta,
+        #     **initial_rope_kwargs
+        # )
         self.causal_mask = nn.make_causal_mask(
             jnp.ones((1, self.config.c_max_position_embeddings), dtype='i4'))
         
@@ -1158,11 +1158,11 @@ class FlaxMistralModule(nn.Module):
             hidden_state=hidden_states,
             attention_mask=attention_mask,
             position_ids=position_ids,
-            freq_cis=self.freq_cis,
+            # freq_cis=self.freq_cis,
             init_cache=init_cache,
             output_attentions=output_attentions,
             deterministic=deterministic,
-            causal_mask=self.causal_mask
+            # causal_mask=self.causal_mask
         )
 
         hidden_states = outputs[0]
