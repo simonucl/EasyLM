@@ -1103,13 +1103,13 @@ class FlaxMistralModule(nn.Module):
         initial_rope_kwargs = dict(
             rope_type="none"
         )
-        if self.config.rope_scaling is not None:
-            scaling_type = self.config.rope_scaling["type"]
-            scaling_factor = self.config.rope_scaling["factor"]
-            initial_rope_kwargs = dict(
-                scaling_factor=scaling_factor,
-                rope_type=scaling_type
-            )
+        # if self.config.rope_scaling is not None:
+        #     scaling_type = self.config.rope_scaling["type"]
+        #     scaling_factor = self.config.rope_scaling["factor"]
+        #     initial_rope_kwargs = dict(
+        #         scaling_factor=scaling_factor,
+        #         rope_type=scaling_type
+        #     )
         # self.freq_cis = precompute_freq_cis(
         #     max_position_embeddings=self.config.max_position_embeddings,
         #     dim=self.config.hidden_size // self.config.num_attention_heads,
