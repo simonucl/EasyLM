@@ -1519,5 +1519,12 @@ if __name__ == '__main__':
     jax_logits = jax_logits.astype(jnp.float32)
     # print(jax_logits.shape)
 
-    print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
+    # check if hf_logits is 2 dim or 3 dim
+    if len(hf_logits.shape) == 2:
+        hf_logits = hf_logits[None, ...]
+    if len(jax_logits.shape) == 2:
+        jax_logits = jax_logits[None, ...]
+    print(hf_logits[0, -1, :10])
+    print(jax_logits[0, -1, :10])
+    # print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
     # import pdb; pdb.set_trace()
