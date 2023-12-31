@@ -1515,6 +1515,8 @@ if __name__ == '__main__':
         restored_params, inputs, deterministic=True,
     ).logits
 
+    # convert jax logits to fp32
+    jax_logits = jax_logits.astype(jnp.float32)
     # print(jax_logits.shape)
 
     print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
