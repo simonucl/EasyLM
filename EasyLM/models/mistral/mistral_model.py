@@ -1507,9 +1507,6 @@ if __name__ == '__main__':
     )
     _, restored_params = checkpointer.load_trainstate_checkpoint('params::gs://data-selection-bucket/easylm/Mistral-7b')
     # print the restored params key and shape of value
-    for key, value in restored_params.items():
-        print(f'{key}: {value.shape}')
-        
     print('Finished loading params')
     inputs = tokenizer("What is 2+2?", return_tensors='jax').input_ids
     # hf_logits = hf_model(torch.tensor(np.array(inputs))).logits
