@@ -90,7 +90,7 @@ def inverse_permute_kv(params, w):
     dim = params["dim"]
     reshaped_w = w.reshape(n_kv_heads, 2, dim // n_heads // 2, dim)
     transposed_w = reshaped_w.transpose(0, 2, 1, 3)
-    inverted_w = transposed_w.reshape(dim, n_kv_heads * (dim // n_heads))
+    inverted_w = transposed_w.reshape(dim, n_kv_heads * (dim // n_heads)) # (4096, 1024)
     return inverted_w
 
 
@@ -130,7 +130,7 @@ def main(args):
                             "kernel": inverse_permute_kv(
                                 params,
                                 ckpt[f"layers.{layer}.self_attn.k_proj.weight"].numpy(),
-                            ).transpose()
+                            )
                         },
                         "wv": {
                             "kernel": ckpt[f"layers.{layer}.self_attn.v_proj.weight"]
