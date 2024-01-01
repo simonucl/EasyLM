@@ -1,3 +1,7 @@
+'''
+WIP!
+'''
+
 import os
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -174,36 +178,6 @@ MISTRAL_STANDARD_CONFIGS = {
         'tie_word_embeddings': False,
     },
 }
-
-# def precompute_freq_cis(
-#         dim, max_position_embeddings=2048, base=10000, scaling_factor=1.0, rope_type: str | None = None
-# ):
-#     if rope_type == "none":
-#         rope_type = None
-#     assert rope_type in [
-#         "linear",
-#         "dynamic",
-#         None
-#     ], "wrong rope type has been given"
-#     t = jax.numpy.arange(max_position_embeddings)
-
-#     if rope_type == "linear":
-#         t = t / scaling_factor
-
-#     if rope_type == "dynamic":
-#         base = base * (
-#                 scaling_factor - (scaling_factor - 1)
-#         ) ** (dim / (dim - 2))
-
-#     inv_freq = 1.0 / (
-#             base ** (jax.numpy.arange(0, dim, 2, dtype=jax.numpy.float32) / dim)
-#     )
-#     freq = jax.numpy.einsum(
-#         "i , j -> i j", t, inv_freq
-#     ).astype("float32")
-
-#     embed = jax.numpy.concatenate((freq, freq), axis=-1)
-#     return jax.numpy.sin(embed)[:, :], jax.numpy.cos(embed)[:, :]
 
 class MistralConfig(PretrainedConfig):
     r"""
@@ -438,34 +412,6 @@ class MistralRMSNorm(nn.Module):
         output = self._norm(x).astype(self.dtype)
         weight = jnp.asarray(self.weight, self.dtype)
         return output * weight
-
-# def apply_rotary_pos_emb(tensor, sin_, cos_):
-#     """
-#     The apply_rotary_pos_emb function applies a rotary positional embedding to the input tensor.
-#     b,h,s,d or pytorch style
-
-#     :param tensor: Store the tensor that is passed into the function
-#     :param sin_: Rotate the tensor by pi/2
-#     :param cos_: Apply the cosine function to the tensor
-#     :return: A tensor with the same shape as the input tensor
-
-#     """
-#     b, h, s, d = tensor.shape
-#     return (tensor * cos_[:, :, :s, :]) + (rotate_half(tensor) * sin_[:, :, :s, :])
-
-# class FlaxMistralRotaryEmbedding(nn.Module):
-#     dtype: jnp.dtype = jnp.float32
-
-#     def __call__(self, key, query, freq_cis, position_ids):
-#         sin, cos = freq_cis
-
-#         sin = sin[position_ids][:, None, :, :]
-#         cos = cos[position_ids][:, None, :, :]
-
-#         key = apply_rotary_pos_emb(key, sin, cos)
-#         query = apply_rotary_pos_emb(query, sin, cos)
-
-#         return query.astype(self.dtype), key.astype(self.dtype)
 
 
 def apply_rotary_emb(
@@ -1099,25 +1045,6 @@ class FlaxMistralModule(nn.Module):
             dtype=self.dtype, 
             param_dtype=self.param_dtype
         )
-
-        # initial_rope_kwargs = dict(
-        #     rope_type="none"
-        # )
-        # if self.config.rope_scaling is not None:
-        #     scaling_type = self.config.rope_scaling["type"]
-        #     scaling_factor = self.config.rope_scaling["factor"]
-        #     initial_rope_kwargs = dict(
-        #         scaling_factor=scaling_factor,
-        #         rope_type=scaling_type
-        #     )
-        # self.freq_cis = precompute_freq_cis(
-        #     max_position_embeddings=self.config.max_position_embeddings,
-        #     dim=self.config.hidden_size // self.config.num_attention_heads,
-        #     base=self.config.rope_theta,
-        #     **initial_rope_kwargs
-        # )
-        # self.causal_mask = nn.make_causal_mask(
-        #     jnp.ones((1, self.config.c_max_position_embeddings), dtype='i4'))
         
     def __call__(
         self,
@@ -1524,6 +1451,7 @@ if __name__ == '__main__':
         hf_logits = hf_logits[None, ...]
     if len(jax_logits.shape) == 2:
         jax_logits = jax_logits[None, ...]
+        
     print(hf_logits[0, -1, :10])
     print(jax_logits[0, -1, :10])
     # print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
