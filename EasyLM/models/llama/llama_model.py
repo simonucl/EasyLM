@@ -160,12 +160,28 @@ LLAMA_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
     },
+    '70bflash': {
+        'vocab_size': 32000,
+        'hidden_size': 8192,
+        'intermediate_size': 28672,
+        'num_hidden_layers': 80,
+        'num_attention_heads': 64,
+        'num_key_value_heads': 8,
+        'max_sequence_length': 8192,
+        'initializer_range': 0.02,
+        'rms_norm_eps': 1e-5,
+        'use_cache': True,
+        'tie_word_embeddings': False,
+        'scan_attention': True,
+        'scan_mlp': True,
+    },
     'debug': { # A small model for debugging
         'vocab_size': 32000,
         'hidden_size': 128,
         'intermediate_size': 256,
         'num_hidden_layers': 2,
         'num_attention_heads': 4,
+        'num_key_value_heads': 2,
         'max_sequence_length': 2048,
         'initializer_range': 0.02,
         'rms_norm_eps': 1e-6,
@@ -567,6 +583,9 @@ class FlaxLLaMAAttention(nn.Module):
 
         if self.config.scan_attention and not (self.has_variable("cache", "cached_key") or init_cache):
             # doesn't need blockwise attention if we are doing autoregressive decoding since no quadratic memory
+            # if we have GQA - repeat out. have to do here due to kv cache shenanigans.
+            xk = self.repeat_kv(xk, self.num_repetitions)
+            xv = self.repeat_kv(xv, self.num_repetitions)
 
             # attention mask without nxn materlization, blockwise_attn will handle the rest
             attention_mask = jnp.expand_dims(attention_mask, axis=(-3, -2))
