@@ -24,7 +24,7 @@ chex==0.1.7
 einops
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.0.1
-transformers==4.31.0
+transformers
 datasets
 huggingface_hub
 tqdm
