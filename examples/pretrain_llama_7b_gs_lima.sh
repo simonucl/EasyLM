@@ -27,6 +27,7 @@ python -m EasyLM.models.llama.llama_train \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
+    --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-hf' \
     --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-hf/tokenizer.model' \
     --optimizer.type='adamw' \
     --optimizer.accumulate_gradient_steps=8 \
