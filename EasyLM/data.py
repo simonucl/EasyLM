@@ -579,7 +579,7 @@ class JsonTorchDataset(object):
                     dataset.append(data)
             # load into huggingface dataset 
             dataset = Dataset.from_list(dataset)
-            
+    
         #     if self.config.shard_num != 0:
         #         for i in range(self.config.shard_num):
         #             shard_dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
