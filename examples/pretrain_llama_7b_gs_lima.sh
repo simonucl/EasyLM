@@ -37,7 +37,7 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.warmup_ratio=0.00 \
     --num_epochs=15 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
-    --train_dataset.type='json_processed' \
+    --train_dataset.type='json_torch' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/lima/lima_data.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \

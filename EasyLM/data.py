@@ -607,7 +607,7 @@ class JsonTorchDataset(object):
         #     import sys
         #     sys.exit(1)
 
-            dataset = dataset.shard(num_shards=3, index=0)
+            # dataset = dataset.shard(num_shards=3, index=0)
             self.dataset = dataset.map(
                 self._process_sample,
                 batched=False,

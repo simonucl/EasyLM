@@ -38,7 +38,7 @@ python -m EasyLM.models.llama.llama_train \
     --num_epochs=15 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='json_processed' \
-    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/lima/lima_data.jsonl' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
