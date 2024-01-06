@@ -70,10 +70,7 @@ def main(argv):
 
     tokenizer = LLaMAConfig.get_tokenizer(FLAGS.tokenizer)
     dataset = DatasetFactory.load_dataset(FLAGS.train_dataset, tokenizer)
-    print(f"Dataset length: {len(dataset)}")
-    import sys
-    sys.exit(1)
-    
+
     if FLAGS.load_dataset_state != '':
         dataset.load_state_dict(mlxu.load_pickle(FLAGS.load_dataset_state))
 
