@@ -34,10 +34,10 @@ class DatasetFactory(object):
         return config
 
     @classmethod
-    def select_subset(dataset, indices):
+    def select_subset(cls, dataset, indices):
         if isinstance(indices, dict):
             indices = indices['indices']
-            
+
         if isinstance(dataset, HuggingfaceDataset):
             dataset._dataset = dataset._dataset.select(indices)
         else:
