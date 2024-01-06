@@ -37,5 +37,4 @@ bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-lima Llama-2-7b
 # bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-sharegpt-$EPOCH Llama-2-7b-hf-sharegpt-$EPOCH
 
 # # nohup bash examples/convert_easylm_hf.sh > examples/convert_easylm_hf.log 2>&1 &
-
 # # nohup bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-sharegpt-epoch_3 Llama-2-7b-hf-sharegpt-epoch_3 > logs/eval_mmlu_sharegpt_3epoch.log 2>&1 &

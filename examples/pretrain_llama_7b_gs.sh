@@ -34,10 +34,11 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
-    --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --num_epochs=3 \
+    --optimizer.adamw_optimizer.warmup_ratio=0.00 \
+    --num_epochs=6 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='json_processed' \
+    --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_Random_0.1.pkl' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
@@ -51,7 +52,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
     --log_all_worker=True
-| & tee $HOME/output.txt
+# | & tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \
     # --train_dataset.json_dataset.path='/path/to/shuffled/redpajama/dataset' \
