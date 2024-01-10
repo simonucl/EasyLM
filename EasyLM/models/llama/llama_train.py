@@ -132,7 +132,9 @@ def main(argv):
         FLAGS.optimizer.adamw_optimizer.lr_decay_steps = total_simulated_steps
         if FLAGS.optimizer.adamw_optimizer.warmup_ratio > 0:
             FLAGS.optimizer.adamw_optimizer.lr_warmup_steps = math.ceil(FLAGS.optimizer.adamw_optimizer.warmup_ratio * total_simulated_steps)
-
+        else:
+            FLAGS.optimizer.adamw_optimizer.lr_warmup_steps = 0
+            
     print(f"Total simulated steps: {total_simulated_steps}")
     print(f"Total simulated warmup steps: {FLAGS.optimizer.adamw_optimizer.lr_warmup_steps}")
     print(f"Total simulated decay steps: {FLAGS.optimizer.adamw_optimizer.lr_decay_steps}")
