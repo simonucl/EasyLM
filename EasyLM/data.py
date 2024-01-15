@@ -1113,6 +1113,7 @@ class TuluHFTorchDataset(TuluJsonTorchDataset):
 #   - prompt: the initial prompt **with whitespace at the end**
 #   - chosen: the chosen completion
 #   - rejected: the rejected completion
+
 class PreferenceDataset(JsonTorchDataset):
 
     def _process_sample(self, sample):
