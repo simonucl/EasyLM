@@ -772,7 +772,7 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
                         continue
                     dataset.append(data)
             encode_function_train = partial(
-                self.encode_with_prompt_completion_format,
+                self._process_sample,
                 tokenizer=tokenizer,
                 max_seq_length=self.config.seq_length,
                 mode = "train",
@@ -784,7 +784,7 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
             if self.dataset_name == "wos":
                 dataset = dataset.rename_column('doc_token', 'input')
                 dataset = dataset.rename_column('doc_label', 'output')
-                
+
             self.dataset = dataset.map(
                 encode_function_train,
                 batched=False,
@@ -799,9 +799,9 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
                 num_proc=self.config.num_workers,
                 remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
     
-    def _process_sample(self, sample):
+    def _process_sample(self, sample, tokenizer, max_seq_length, mode="train", label_map = [], dataset = "aapd", depths = None, r_hiera = None, _label_dict = None):
         # run tulu processor
-        tokens, labels, attention_mask = self.encode_with_prompt_completion_format(sample, self.tokenizer, self.config.seq_length)
+        tokens, labels, attention_mask = self.encode_with_prompt_completion_format(sample, tokenizer, max_seq_length, mode, label_map, dataset, depths, r_hiera, _label_dict)
         loss_masks = [1.0 if x != -100 else 0.0 for x in labels]
         # before padding, account for shifting
         input_tokens = tokens[:-1].tolist()
