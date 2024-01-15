@@ -1,3 +1,7 @@
+'''
+WIP!
+'''
+
 import os
 from shutil import copyfile
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -36,7 +40,7 @@ from EasyLM.jax_utils import (
 )
 
 
-LLAMA_STANDARD_CONFIGS = {
+MISTRAL_STANDARD_CONFIGS = {
     '1b': {
         'vocab_size': 32000,
         'hidden_size': 2048,
@@ -64,12 +68,13 @@ LLAMA_STANDARD_CONFIGS = {
     '7b': {
         'vocab_size': 32000,
         'hidden_size': 4096,
-        'intermediate_size': 11008,
+        'intermediate_size': 14336,
         'num_hidden_layers': 32,
         'num_attention_heads': 32,
+        'num_key_value_heads': 8,
         'max_sequence_length': 8192,
         'initializer_range': 0.02,
-        'rms_norm_eps': 1e-6,
+        'rms_norm_eps': 1e-5,
         'use_cache': True,
         'tie_word_embeddings': False,
     },
@@ -160,28 +165,12 @@ LLAMA_STANDARD_CONFIGS = {
         'use_cache': True,
         'tie_word_embeddings': False,
     },
-    '70bflash': {
-        'vocab_size': 32000,
-        'hidden_size': 8192,
-        'intermediate_size': 28672,
-        'num_hidden_layers': 80,
-        'num_attention_heads': 64,
-        'num_key_value_heads': 8,
-        'max_sequence_length': 8192,
-        'initializer_range': 0.02,
-        'rms_norm_eps': 1e-5,
-        'use_cache': True,
-        'tie_word_embeddings': False,
-        'scan_attention': True,
-        'scan_mlp': True,
-    },
     'debug': { # A small model for debugging
         'vocab_size': 32000,
         'hidden_size': 128,
         'intermediate_size': 256,
         'num_hidden_layers': 2,
         'num_attention_heads': 4,
-        'num_key_value_heads': 2,
         'max_sequence_length': 2048,
         'initializer_range': 0.02,
         'rms_norm_eps': 1e-6,
@@ -190,8 +179,7 @@ LLAMA_STANDARD_CONFIGS = {
     },
 }
 
-
-class LLaMAConfig(PretrainedConfig):
+class MistralConfig(PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a [`~LLaMAModel`]. It is used to instantiate an LLaMA
     model according to the specified arguments, defining the model architecture. Instantiating a configuration with the
@@ -225,15 +213,15 @@ class LLaMAConfig(PretrainedConfig):
             Whether to tie weight embeddings
         Example:
     ```python
-    >>> from transformers import LLaMAModel, LLaMAConfig
-    >>> # Initializing a LLaMA llama-7b style configuration
-    >>> configuration = LLaMAConfig()
+    >>> from transformers import MistralModel, MistralConfig
+    >>> # Initializing a Mistral mistral-7b style configuration
+    >>> configuration = MistralConfig()
     >>> # Initializing a model from the llama-7b style configuration
     >>> model = LLaMAModel(configuration)
     >>> # Accessing the model configuration
     >>> configuration = model.config
     ```"""
-    model_type = "llama"
+    model_type = "mistral"
 
     def __init__(
         self,
@@ -313,15 +301,20 @@ class LLaMAConfig(PretrainedConfig):
 
     @staticmethod
     def get_partition_rules():
-        """ Parition rules for GPTJ. Note that these rules are orderd, so that
-            the beginning rules match first. It is important to use
-            PartitionSpec() instead of None here because JAX does not treat
-            None as a pytree leaf.
+        """
+        The get_partition_rules function is used to define the partitioning scheme for a model.
+        It returns a list of tuples, where each tuple contains two elements:
+          1) A regex string that matches the name of one or more parameters in the model.
+          2) A PartitionScheme object that defines how those parameters should be partitioned.
+
+        :param fully_fsdp: bool: Determine whether to use the fully_fsdp partitioning scheme or not
+        :return: A list of tuples
+
         """
         return (
             # embeddings
             ("transformer/wte/embedding", PS("mp", "fsdp")),
-            # atention
+            # attention
             ("attention/(wq|wk|wv)/kernel", PS("fsdp", "mp")),
             ("attention/wo/kernel", PS("mp", "fsdp")),
             # mlp
@@ -345,6 +338,7 @@ class LLaMAConfig(PretrainedConfig):
     def rng_keys():
         return ('params', 'dropout', 'fcm')
 
+    # TODO check this out later
     @staticmethod
     def get_tokenizer_config(updates=None):
         config = ConfigDict()
@@ -360,7 +354,7 @@ class LLaMAConfig(PretrainedConfig):
     def get_tokenizer(cls, config, padding_side='left', truncation_side='right'):
         config = cls.get_tokenizer_config(config)
         assert config.vocab_file != '', 'vocab_file must be specified'
-        tokenizer = LLaMATokenizer(
+        tokenizer = MistralTokenizer(
             vocab_file=config.vocab_file,
             add_bos_token=config.add_bos_token,
             add_eos_token=config.add_eos_token,
@@ -371,8 +365,8 @@ class LLaMAConfig(PretrainedConfig):
 
     @classmethod
     def load_config(cls, path):
-        if path in LLAMA_STANDARD_CONFIGS:
-            return cls.from_dict(LLAMA_STANDARD_CONFIGS[path])
+        if path in MISTRAL_STANDARD_CONFIGS:
+            return cls.from_dict(MISTRAL_STANDARD_CONFIGS[path])
         load_type, load_path = path.split('::', 1)
         if load_type == 'pickle':
             return cls.from_dict(load_pickle(load_path)['llama_config'])
@@ -388,12 +382,19 @@ remat = nn_partitioning.remat
 
 logger = logging.get_logger(__name__)
 
+def precompute_freqs_cis(dim: int, end: int, theta: float=10000.0, dtype: jnp.dtype=jnp.float32) -> jnp.ndarray:
+    freqs = 1.0 / (theta ** (np.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
+    t = np.arange(end)  # type: ignore
+    freqs = np.outer(t, freqs).astype(dtype)  # type: ignore
+    sin, cos = np.sin(freqs), np.cos(freqs)
+    freqs_cis = np.complex64(cos + 1j * sin)
+    return jnp.asarray(freqs_cis)
 
-class RMSNorm(nn.Module):
+class MistralRMSNorm(nn.Module):
     dim: int
-    eps: float=1e-6
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+    eps: float = 1e-6
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.bfloat16
 
     def setup(self) -> None:
         self.weight = self.param(
@@ -412,13 +413,6 @@ class RMSNorm(nn.Module):
         weight = jnp.asarray(self.weight, self.dtype)
         return output * weight
 
-def precompute_freqs_cis(dim: int, end: int, theta: float=10000.0, dtype: jnp.dtype=jnp.float32) -> jnp.ndarray:
-    freqs = 1.0 / (theta ** (np.arange(0, dim, 2)[: (dim // 2)].astype(dtype) / dim))
-    t = np.arange(end)  # type: ignore
-    freqs = np.outer(t, freqs).astype(dtype)  # type: ignore
-    sin, cos = np.sin(freqs), np.cos(freqs)
-    freqs_cis = np.complex64(cos + 1j * sin)
-    return jnp.asarray(freqs_cis)
 
 def apply_rotary_emb(
     xq: jnp.ndarray,
@@ -445,10 +439,10 @@ def apply_rotary_emb(
     return xq_out.astype(dtype), xk_out.astype(dtype)
 
 
-class FlaxLLaMAAttention(nn.Module):
-    config: LLaMAConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+class FlaxMistralAttention(nn.Module):
+    config: MistralConfig
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -581,11 +575,9 @@ class FlaxLLaMAAttention(nn.Module):
         if not deterministic and self.config.attn_pdrop > 0.0:
             dropout_rng = self.make_rng("dropout")
 
+        # Applying Flash Attention to the input
         if self.config.scan_attention and not (self.has_variable("cache", "cached_key") or init_cache):
             # doesn't need blockwise attention if we are doing autoregressive decoding since no quadratic memory
-            # if we have GQA - repeat out. have to do here due to kv cache shenanigans.
-            xk = self.repeat_kv(xk, self.num_repetitions)
-            xv = self.repeat_kv(xv, self.num_repetitions)
 
             # attention mask without nxn materlization, blockwise_attn will handle the rest
             attention_mask = jnp.expand_dims(attention_mask, axis=(-3, -2))
@@ -667,8 +659,8 @@ class FlaxLLaMAAttention(nn.Module):
         return outputs
 
 
-class FlaxLLaMAMLP(nn.Module):
-    config: LLaMAConfig
+class FlaxMistralMLP(nn.Module):
+    config: MistralConfig
     dtype: jnp.dtype=jnp.float32
     param_dtype: jnp.dtype=jnp.float32
     precision: Optional[Union[jax.lax.Precision, str]]=None
@@ -708,24 +700,24 @@ class FlaxLLaMAMLP(nn.Module):
         return x
 
 
-class FlaxLLaMABlock(nn.Module):
-    config: LLaMAConfig
-    dtype: jnp.dtype=jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+class FlaxMistralDecoderLayer(nn.Module):
+    config: MistralConfig
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self) -> None:
-        attention_module = FlaxLLaMAAttention
-        mlp_module = FlaxLLaMAMLP
+        attention_module = FlaxMistralAttention
+        mlp_module = FlaxMistralMLP
         if self.config.remat_attention != '':
             attention_module = remat(
-                FlaxLLaMAAttention, static_argnums=(3, 4, 5),
+                FlaxMistralAttention, static_argnums=(3, 4, 5),
                 policy=get_gradient_checkpoint_policy(self.config.remat_attention),
                 prevent_cse=True,
             )
         if self.config.remat_mlp != '':
             mlp_module = remat(
-                FlaxLLaMAMLP, static_argnums=(1,),
+                FlaxMistralMLP, static_argnums=(1,),
                 policy=get_gradient_checkpoint_policy(self.config.remat_mlp),
                 prevent_cse=True,
             )
@@ -742,13 +734,13 @@ class FlaxLLaMABlock(nn.Module):
             param_dtype=self.param_dtype,
             precision=self.precision,
         )
-        self.attention_norm = RMSNorm(
+        self.attention_norm = MistralRMSNorm(
             self.config.hidden_size,
             eps=self.config.rms_norm_eps,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        self.ffn_norm = RMSNorm(
+        self.ffn_norm = MistralRMSNorm(
             self.config.hidden_size,
             eps=self.config.rms_norm_eps,
             dtype=self.dtype,
@@ -779,6 +771,7 @@ class FlaxLLaMABlock(nn.Module):
 
         feed_forward_input = self.ffn_norm(hidden_states)
 
+        # implementation of BPT: Blockwise Parallel Transformer
         if self.config.scan_mlp:
             feed_forward_hidden_states = blockwise_ffn(
                 self.feed_forward,
@@ -798,19 +791,19 @@ class FlaxLLaMABlock(nn.Module):
         return (hidden_states,) + attn_outputs[1:]
 
 
-class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
+class FlaxMistralPreTrainedModel(FlaxPreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
     models.
     """
 
-    config_class = LLaMAConfig
+    config_class = MistralConfig
     base_model_prefix = "transformer"
     module_class: nn.Module = None
 
     def __init__(
         self,
-        config: LLaMAConfig,
+        config: MistralConfig,
         input_shape: Tuple = (1, 1),
         seed: int = 0,
         dtype: jnp.dtype = jnp.float32,
@@ -945,17 +938,17 @@ class FlaxLLaMAPreTrainedModel(FlaxPreTrainedModel):
         return outputs
 
 
-class FlaxLLaMABlockCollection(nn.Module):
-    config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+class FlaxMistralDecoratorCollection(nn.Module):
+    config: MistralConfig
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype=jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
-        block = FlaxLLaMABlock
+        block = FlaxMistralDecoderLayer
         if self.config.remat_block != '':
             block = remat(
-                FlaxLLaMABlock, static_argnums=(3, 4, 5),
+                FlaxMistralDecoderLayer, static_argnums=(3, 4, 5),
                 policy=get_gradient_checkpoint_policy(self.config.remat_block)
             )
         self.blocks = [
@@ -1023,10 +1016,10 @@ class FlaxLLaMABlockCollection(nn.Module):
         return outputs
 
 
-class FlaxLLaMAModule(nn.Module):
-    config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+class FlaxMistralModule(nn.Module):
+    config: MistralConfig
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
@@ -1040,9 +1033,19 @@ class FlaxLLaMAModule(nn.Module):
             param_dtype=self.param_dtype,
         )
         self.dropout = nn.Dropout(rate=self.config.embd_pdrop)
-        self.h = FlaxLLaMABlockCollection(self.config, dtype=self.dtype, param_dtype=self.param_dtype, precision=self.precision)
-        self.ln_f = RMSNorm(self.config.hidden_size, eps=self.config.rms_norm_eps, dtype=self.dtype, param_dtype=self.param_dtype)
-
+        self.h = FlaxMistralDecoratorCollection(
+            self.config, 
+            dtype=self.dtype, 
+            param_dtype=self.param_dtype, 
+            precision=self.precision
+            )
+        self.ln_f = MistralRMSNorm(
+            self.config.hidden_size, 
+            eps=self.config.rms_norm_eps, 
+            dtype=self.dtype, 
+            param_dtype=self.param_dtype
+        )
+        
     def __call__(
         self,
         input_ids,
@@ -1054,19 +1057,39 @@ class FlaxLLaMAModule(nn.Module):
         output_hidden_states: bool = False,
         return_dict: bool = True,
     ):
+        """
+        The __call__ function is the main function of a Flax model.
+        It takes in input_ids, attention_mask, and position_ids as inputs to the model.
+        The output is a tuple containing: last hidden state (hidden states), all hidden states (if output_hidden_states=True), attentions (if output attentions=True).
+
+
+        :param self: Represent the instance of the class
+        :param input_ids: chex.Array: Pass in the input ids
+        :param attention_mask: chex.Array: Mask out the attention weights for certain tokens
+        :param position_ids: chex.Array: Determine the position of each token in a sequence
+        :param deterministic: bool: Determine whether to use dropout or not
+        :param inputs_embeds: chex.Array: Pass in the embedding of the input_ids
+        :param init_cache: bool: Initialize the cache for the decoder
+        :param output_attentions: bool: Determine whether to return the attention weights or not
+        :param output_hidden_states: bool: Return all hidden states or just the last one
+        :param return_dict: bool: Return a dictionary of the outputs or not
+        :param : Determine whether the model is in training mode or not
+        :return: A tuple of the hidden states, all hidden states, and attentions
+
+        """
         input_embeds = self.wte(input_ids.astype("i4"))
 
         hidden_states = self.dropout(input_embeds, deterministic=deterministic)
 
         outputs = self.h(
-            hidden_states,
-            attention_mask,
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
             position_ids=position_ids,
-            deterministic=deterministic,
+            # freq_cis=self.freq_cis,
             init_cache=init_cache,
             output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            deterministic=deterministic,
+            # causal_mask=self.causal_mask
         )
 
         hidden_states = outputs[0]
@@ -1088,8 +1111,8 @@ class FlaxLLaMAModule(nn.Module):
         )
 
 @add_start_docstrings("", "")
-class FlaxLLaMAModel(FlaxLLaMAPreTrainedModel):
-    module_class = FlaxLLaMAModule
+class FlaxMistralModel(FlaxMistralPreTrainedModel):
+    module_class = FlaxMistralModule
 
 # append_call_sample_docstring(
 #     FlaxLLaMAModel,
@@ -1099,14 +1122,19 @@ class FlaxLLaMAModel(FlaxLLaMAPreTrainedModel):
 #     _CONFIG_FOR_DOC,
 # )
 
-class FlaxLLaMAForCausalLMModule(nn.Module):
-    config: LLaMAConfig
-    dtype: jnp.dtype = jnp.float32
-    param_dtype: jnp.dtype=jnp.float32
+class FlaxMistralForCausalLMModule(nn.Module):
+    config: MistralConfig
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.bfloat16
     precision: Optional[Union[jax.lax.Precision, str]]=None
 
     def setup(self):
-        self.transformer = FlaxLLaMAModule(self.config, dtype=self.dtype)
+        self.transformer: FlaxMistralModule = FlaxMistralModule(
+            self.config,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            precision=self.precision,
+        )
         self.lm_head = nn.Dense(
             self.config.vocab_size,
             dtype=self.dtype,
@@ -1161,8 +1189,8 @@ class FlaxLLaMAForCausalLMModule(nn.Module):
 
 
 @add_start_docstrings("", "")
-class FlaxLLaMAForCausalLM(FlaxLLaMAPreTrainedModel):
-    module_class = FlaxLLaMAForCausalLMModule
+class FlaxMistralForCausalLM(FlaxMistralPreTrainedModel):
+    module_class = FlaxMistralForCausalLMModule
 
     def prepare_inputs_for_generation(self, input_ids, max_length, attention_mask: Optional[jax.Array] = None):
         # initializing the cache
@@ -1205,7 +1233,7 @@ VOCAB_FILES_NAMES = {"vocab_file": "tokenizer.model"}
 PRETRAINED_VOCAB_FILES_MAP = {}
 
 
-class LLaMATokenizer(PreTrainedTokenizer):
+class MistralTokenizer(PreTrainedTokenizer):
     """
     Construct a LLaMA tokenizer. Based on byte-level Byte-Pair-Encoding.
     Args:
@@ -1229,11 +1257,11 @@ class LLaMATokenizer(PreTrainedTokenizer):
         **kwargs,
     ):
         self.sp_model_kwargs = {} if sp_model_kwargs is None else sp_model_kwargs
-        self.sp_model = spm.SentencePieceProcessor(**self.sp_model_kwargs)
         super().__init__(bos_token=bos_token, eos_token=eos_token, unk_token=unk_token, **kwargs)
         self.vocab_file = vocab_file
         self.add_bos_token = add_bos_token
         self.add_eos_token = add_eos_token
+        self.sp_model = spm.SentencePieceProcessor(**self.sp_model_kwargs)
 
         with tempfile.NamedTemporaryFile() as tfile:
             with open_file(self.vocab_file, 'rb') as fin:
@@ -1392,19 +1420,20 @@ if __name__ == '__main__':
     from EasyLM.checkpoint import StreamingCheckpointer
     from EasyLM.jax_utils import JaxRNG, next_rng
     import torch
-    tokenizer = AutoTokenizer.from_pretrained('/mnt/data/Llama-2-7b-hf')
-    hf_model = AutoModelForCausalLM.from_pretrained('/mnt/data/Llama-2-7b-hf')
+    tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+    hf_model = AutoModelForCausalLM.from_pretrained('mistralai/Mistral-7B-v0.1')
     print('Finished loading tokenizer')
-    llama_config = LLaMAConfig.load_config('7b')
-    jax_model = FlaxLLaMAForCausalLMModule(
-        llama_config, dtype=jnp.float32
+    mistral_config = MistralConfig.load_config('7b')
+    jax_model = FlaxMistralForCausalLMModule(
+        mistral_config, dtype=jnp.bfloat16
     )
     print('Finished loading model')
     checkpointer = checkpointer = StreamingCheckpointer(
         StreamingCheckpointer.get_default_config(), 'output',
         enable=jax.process_index() == 0,
     )
-    _, restored_params = checkpointer.load_trainstate_checkpoint('params::/mnt/data/EasyLM/model/easylm/Llama-2-7b-hf')
+    _, restored_params = checkpointer.load_trainstate_checkpoint('params::gs://data-selection-bucket/easylm/Mistral-7b')
+    # print the restored params key and shape of value
     print('Finished loading params')
     inputs = tokenizer("What is 2+2?", return_tensors='jax').input_ids
     hf_logits = hf_model(torch.tensor(np.array(inputs))).logits
@@ -1413,5 +1442,17 @@ if __name__ == '__main__':
         restored_params, inputs, deterministic=True,
     ).logits
 
-    print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
-    import pdb; pdb.set_trace()
+    # convert jax logits to fp32
+    jax_logits = jax_logits.astype(jnp.float32)
+    # print(jax_logits.shape)
+
+    # check if hf_logits is 2 dim or 3 dim
+    if len(hf_logits.shape) == 2:
+        hf_logits = hf_logits[None, ...]
+    if len(jax_logits.shape) == 2:
+        jax_logits = jax_logits[None, ...]
+        
+    print(hf_logits[0, -1, :10])
+    print(jax_logits[0, -1, :10])
+    # print(np.allclose(hf_logits.detach().numpy(), jax_logits, atol=1e-4))
+    # import pdb; pdb.set_trace()

@@ -23,7 +23,7 @@ python -m EasyLM.models.llama.llama_train \
     --total_steps=250000 \
     --log_freq=256 \
     --save_model_freq=0 \
-    --save_milestone_freq=1024 \
+    --save_milestone_freq=4096 \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
@@ -33,13 +33,12 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
-    --optimizer.adamw_optimizer.end_lr=5e-6 \
+    --optimizer.adamw_optimizer.end_lr=1e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.00 \
-    --num_epochs=6 \
+    --num_epochs=15 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
-    --train_dataset.type='json_processed' \
-    --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_Deita_0.1.pkl' \
-    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
+    --train_dataset.type='tulu_json_torch' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/lima/lima_data.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
@@ -51,8 +50,8 @@ python -m EasyLM.models.llama.llama_train \
     --logger.project="open_llama_7b" \
     --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
-    --log_all_worker=True
-# | & tee $HOME/output.txt
+    --log_all_worker=False
+| & tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \
     # --train_dataset.json_dataset.path='/path/to/shuffled/redpajama/dataset' \

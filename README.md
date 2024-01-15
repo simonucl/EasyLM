@@ -18,6 +18,7 @@ EasyLM supports multiple TPU/GPU training in a single host as well as multi-host
 training on Google Cloud TPU Pods.
 
 Currently, the following models are supported:
+* [Mistral](https://arxiv.org/abs/2310.06825)
 * [LLaMA](https://arxiv.org/abs/2302.13971)
 * [GPT-J](https://huggingface.co/EleutherAI/gpt-j-6B)
 * [RoBERTa](https://huggingface.co/docs/transformers/model_doc/roberta)

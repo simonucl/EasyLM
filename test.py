@@ -2,8 +2,6 @@
 import jax
 from datasets import load_dataset
 
-dataset = load_dataset("arazd/tulu_stanford_alpaca", None, split="train")
-
 # The total number of TPU cores in the Pod
 device_count = jax.device_count()
 
@@ -41,7 +39,7 @@ print('pmap result:', r)
 # cd EasyLM && \
 # git pull && \
 # mkdir -p output && \
-# bash examples/pretrain_llama_7b_gs.sh" > logs/pretrain_llama_7b_gs.log 2>&1 &
+# bash examples/pretrain_llama_7b_gs_checkpoint.sh" > logs/pretrain_llama_7b_gs_checkpoint.log 2>&1 &
 
 # nohup gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
@@ -62,7 +60,6 @@ print('pmap result:', r)
 # gcloud compute tpus tpu-vm ssh data-selection-v3-32 \
 #   --zone=europe-west4-a --worker=all --command="export PATH="/home/simonyu/.local/bin:$PATH" && \
 # ps -ef | grep 'python -m' | grep -v grep | tr -s ' ' | cut -d ' ' -f 2 | while read pid; do kill -9 $pid; done"
-
 
 
 # convert the above code to nohup ran in the background

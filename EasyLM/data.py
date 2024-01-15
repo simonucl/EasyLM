@@ -13,6 +13,7 @@ import torch
 from torch.utils.data import DataLoader
 from transformers.data.data_collator import numpy_default_data_collator
 from gcsfs import GCSFileSystem
+import pickle
 
 class DatasetFactory(object):
     """ Datset builder class. """
@@ -21,16 +22,28 @@ class DatasetFactory(object):
     def get_default_config(updates=None):
         config = ConfigDict()
         config.type = 'huggingface'
+        config.selection_indices_path = ''
         config.text_processor = TextProcessor.get_default_config()
         config.huggingface_dataset = HuggingfaceDataset.get_default_config()
         config.json_dataset = JsonDataset.get_default_config()
         config.json_torch_dataset = JsonTorchDataset.get_default_config()
         config.tulu_hf_torch_dataset = TuluHFTorchDataset.get_default_config()
-
+        
         if updates is not None:
             config.update(ConfigDict(updates).copy_and_resolve_references())
         return config
 
+    @classmethod
+    def select_subset(cls, dataset, indices):
+        if isinstance(indices, dict):
+            indices = indices['indices']
+
+        if isinstance(dataset, HuggingfaceDataset):
+            dataset._dataset = dataset._dataset.select(indices)
+        else:
+            dataset.dataset = dataset.dataset.select(indices)
+        return dataset
+            
     @classmethod
     def load_dataset(cls, config, tokenizer, **kwargs):
         config = cls.get_default_config(config)
@@ -44,6 +57,10 @@ class DatasetFactory(object):
         elif config.type == 'json_processed':
             torch.manual_seed(42)
             dataset = JsonProcessedDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            if config.selection_indices_path != '':
+                with mlxu.open_file(config.selection_indices_path, 'rb') as f:
+                    indices = pickle.load(f)
+                dataset = cls.select_subset(dataset, indices)
             return DataLoader(
                 dataset,
                 batch_size=config.json_torch_dataset.batch_size,
@@ -55,6 +72,10 @@ class DatasetFactory(object):
         elif config.type == 'json_torch':
             torch.manual_seed(42)
             dataset = JsonTorchDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            if config.selection_indices_path != '':
+                with mlxu.open_file(config.selection_indices_path, 'rb') as f:
+                    indices = pickle.load(f)
+                dataset = cls.select_subset(dataset, indices)
             return DataLoader(
                 dataset,
                 batch_size=config.json_torch_dataset.batch_size,
@@ -579,7 +600,7 @@ class JsonTorchDataset(object):
                     dataset.append(data)
             # load into huggingface dataset 
             dataset = Dataset.from_list(dataset)
-            
+    
         #     if self.config.shard_num != 0:
         #         for i in range(self.config.shard_num):
         #             shard_dataset = dataset.shard(num_shards=self.config.shard_num, index=i)
@@ -607,13 +628,12 @@ class JsonTorchDataset(object):
         #     import sys
         #     sys.exit(1)
 
-            dataset = dataset.shard(num_shards=3, index=0)
+            # dataset = dataset.shard(num_shards=3, index=0)
             self.dataset = dataset.map(
                 self._process_sample,
                 batched=False,
                 num_proc=self.config.num_workers,
                 remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
-            
         else:
             dataset = load_dataset('json', data_files=self.config.path)
             # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)

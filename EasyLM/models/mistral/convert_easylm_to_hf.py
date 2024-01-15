@@ -30,7 +30,7 @@ import jax.numpy as jnp
 import flax
 from flax.traverse_util import flatten_dict
 import torch
-from transformers import LlamaConfig, LlamaForCausalLM, LlamaTokenizer
+from transformers import LlamaConfig, LlamaForCausalLM, LlamaTokenizer, MistralConfig, MistralForCausalLM
 
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.jax_utils import float_tensor_to_dtype
@@ -45,7 +45,7 @@ FLAGS, FLAGS_DEF = mlxu.define_flags_with_default(
 )
 
 
-LLAMA_STANDARD_CONFIGS = {
+MISTRAL_STANDARD_CONFIGS = {
     '1b': {
         'dim': 2048,
         'intermediate_size': 5504,
@@ -62,10 +62,11 @@ LLAMA_STANDARD_CONFIGS = {
     },
     '7b': {
         'dim': 4096,
-        'intermediate_size': 11008,
+        'intermediate_size': 14336,
         'n_layers': 32,
         'n_heads': 32,
-        'norm_eps': 1e-6,
+        'n_kv_heads': 8,
+        'norm_eps': 1e-5,
     },
     '13b': {
         'dim': 5120,
@@ -139,7 +140,7 @@ def write_model(loaded, model_path, model_size):
     tmp_model_path = os.path.join(model_path, "tmp")
     os.makedirs(tmp_model_path, exist_ok=True)
 
-    params = LLAMA_STANDARD_CONFIGS[model_size]
+    params = MISTRAL_STANDARD_CONFIGS[model_size]
 
     n_layers = params["n_layers"]
     n_heads = params["n_heads"]
@@ -204,7 +205,7 @@ def write_model(loaded, model_path, model_size):
     index_dict["metadata"] = {"total_size": param_count * 2}
     write_json(index_dict, os.path.join(tmp_model_path, "pytorch_model.bin.index.json"))
 
-    config = LlamaConfig(
+    config = MistralConfig(
         hidden_size=dim,
         intermediate_size=params["intermediate_size"],
         num_attention_heads=params["n_heads"],
@@ -298,14 +299,14 @@ def write_tokenizer(tokenizer_path, input_tokenizer_path):
 
 def save_hf(model_path, hf_dir):
     tokenizer = LlamaTokenizer.from_pretrained(model_path)
-    model = LlamaForCausalLM.from_pretrained(model_path)
+    model = MistralForCausalLM.from_pretrained(model_path)
 
     tokenizer.push_to_hub(hf_dir)
     model.push_to_hub(hf_dir)
 
 def main(argv):
     assert FLAGS.load_checkpoint != "" and FLAGS.output_dir != "" and FLAGS.tokenizer_path != ""
-    assert FLAGS.model_size in LLAMA_STANDARD_CONFIGS
+    assert FLAGS.model_size in MISTRAL_STANDARD_CONFIGS
     write_tokenizer(
         tokenizer_path=FLAGS.output_dir,
         input_tokenizer_path=FLAGS.tokenizer_path,
