@@ -3,6 +3,7 @@ from functools import partial
 import json
 import base64
 from multiprocessing import Pool
+from collections import defaultdict
 
 from tqdm import tqdm
 import mlxu
@@ -102,6 +103,17 @@ class DatasetFactory(object):
                 dataset,
                 batch_size=config.tulu_hf_torch_dataset.batch_size,
                 num_workers=config.tulu_hf_torch_dataset.num_workers,
+                shuffle=True,
+                collate_fn=numpy_default_data_collator,
+                drop_last=True  # sometimes batch doesnt split across tpu well.
+            )
+        elif config.type == 'classification_json_torch':
+            torch.manual_seed(42)
+            dataset = ClassificationJsonTorchDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            return DataLoader(
+                dataset,
+                batch_size=config.json_torch_dataset.batch_size,
+                num_workers=config.json_torch_dataset.num_workers,
                 shuffle=True,
                 collate_fn=numpy_default_data_collator,
                 drop_last=True  # sometimes batch doesnt split across tpu well.
@@ -723,6 +735,268 @@ class JsonProcessedDataset(JsonTorchDataset):
         #     # load into huggingface dataset 
         #     dataset = Dataset.from_list(dataset)
         self.dataset = dataset
+
+class ClassificationJsonTorchDataset(JsonTorchDataset):
+
+    def __init__(self, config, tokenizer, text_processor, is_train=True):
+        self.config = self.get_default_config(config)
+        self._tokenizer = tokenizer
+        self._text_processor = text_processor
+
+    # def json_iterator(self):
+        # self.dataset = [x for x in tqdm(self._load_file(), desc='Loading Dataset')]
+        fs = GCSFileSystem()
+        dataset = []
+        self.dataset_name = self.config.path.split('/')[-2]
+        assert self.dataset_name in ['aapd', 'bgc', 'bioasq', 'eurlex', 'nyt', 'wos'], f'dataset name {self.dataset_name} not supported'
+        if 'gs://' in self.config.path:
+            taxonomy_path = '/'.join(self.config.path.split('/')[:-1]) + f'/{self.dataset_name}.taxonomy'
+            hiera, _label_dict, r_hiera, depths = self.get_hierarchy_info(taxonomy_path)
+
+            label_mapping= {}
+
+            for key,value in _label_dict.items():
+                label_mapping[key] = key
+
+            with mlxu.open_file(self.config.path, 'r') as fin:
+                for line in tqdm(fin, desc='Loading Dataset'):
+                    if not line or line == '\n':
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.decoder.JSONDecodeError:
+                        print(f'Error parsing json line:\n{line}')
+                        continue
+                    dataset.append(data)
+            encode_function_train = partial(
+                self.encode_with_prompt_completion_format,
+                tokenizer=tokenizer,
+                max_seq_length=self.config.seq_length,
+                mode = "train",
+                label_map = label_mapping,
+                dataset = self.dataset_name,
+                depths = depths, r_hiera = r_hiera, _label_dict = _label_dict
+            )
+            dataset = Dataset.from_list(dataset)
+            self.dataset = dataset.map(
+                encode_function_train,
+                batched=False,
+                num_proc=self.config.num_workers,
+                remove_columns=[x for x in dataset.column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+        else:
+            dataset = load_dataset('json', data_files=self.config.path)
+            # dataset['train'] = dataset['train'].shard(num_shards=1000, index=0)
+            self.dataset = dataset['train'].map(
+                self._process_sample,
+                batched=False,
+                num_proc=self.config.num_workers,
+                remove_columns=[x for x in dataset['train'].column_names if x not in ['input_tokens', 'target_tokens', 'loss_masks', 'attention_mask']],)
+    
+    def _process_sample(self, sample):
+        # run tulu processor
+        tokens, labels, attention_mask = self.encode_with_prompt_completion_format(sample, self.tokenizer, self.config.seq_length)
+        loss_masks = [1.0 if x != -100 else 0.0 for x in labels]
+        # before padding, account for shifting
+        input_tokens = tokens[:-1].tolist()
+        attention_mask = attention_mask[:-1].tolist()
+        loss_masks = loss_masks[1:]
+        target_tokens = tokens[1:].tolist()
+        # pad everything out
+        attention_mask = attention_mask + [0] * (self.config.seq_length - len(attention_mask))
+        input_tokens = input_tokens + [self.tokenizer.pad_token_id] * (self.config.seq_length - len(input_tokens))
+        target_tokens = target_tokens + [self.tokenizer.pad_token_id] * (self.config.seq_length - len(target_tokens))
+        loss_masks = loss_masks + [0.0] * (self.config.seq_length - len(loss_masks))
+        return {
+            "input_tokens": np.array(input_tokens, dtype=np.int32),
+            "target_tokens": np.array(target_tokens, dtype=np.int32),
+            "loss_masks": np.array(loss_masks, dtype=np.float32),
+            "attention_mask": np.array(attention_mask, dtype=np.int32),
+        }
+    
+    def get_hierarchy_info(self, label_cpt):
+        """
+        :param label_cpt: the path of the label_cpt file
+        :return: hiera: Dict{str -> Set[str]}, the parent-child relationship of labels
+        :return: _label_dict: Dict{str -> int}, the label to id mapping
+        :return: r_hiera: Dict{str -> str}, the child-parent relationship of labels
+        :return: label_depth: Dict{str -> int}, the depth of each label
+        """
+        hiera = defaultdict(set)
+        _label_dict = {}
+        with mlxu.open_file(label_cpt, 'r') as fin:
+            _label_dict['Root'] = -1
+            for line in fin.readlines():
+                line = line.strip().split('\t')
+                for i in line[1:]:
+                    if i not in _label_dict:
+                        _label_dict[i] = len(_label_dict) - 1
+                    hiera[line[0]].add(i)
+            _label_dict.pop('Root')
+        r_hiera = {}
+        for i in hiera:
+            for j in list(hiera[i]):
+                r_hiera[j] = i
+
+        def _loop(a):
+            if r_hiera[a] != 'Root':
+                return [a,] + _loop(r_hiera[a])
+            else:
+                return [a]
+
+        label_depth = {}
+        for i in _label_dict:
+            label_depth[i] = len(_loop(i))
+        
+        return hiera, _label_dict, r_hiera, label_depth
+
+    def encode_with_prompt_completion_format(self, example, tokenizer, max_seq_length, mode="train", label_map = [], dataset = "aapd", depths = None, r_hiera = None, _label_dict = None):
+        '''
+        Here we assume each example has 'input' and 'output' fields.
+        We concatenate input and output and tokenize them together because otherwise prompt will be padded/trancated 
+        and it doesn't make sense to follow directly with the completion.
+        '''
+
+        prompt_text = """<s>[INST] Please classifiy the following text S into of the following categories, which could belongs to single or multiple categories: 
+        ```
+        {triples}
+        ```
+        Please provide the output in the format of a list, where each element in the list is a category and is separated by a comma. S: {question}
+        After you finish writing the piece of text, write triple dollar signs (i.e.: $$$).[/INST]"""
+        if mode == "train":
+            # if prompt doesn't end with space and completion doesn't start with space, add space
+            # 追加prompt
+            if(dataset == 'aapd'):
+                example['input'] = prompt_text.format(triples = [ label_map[r_hiera[k]] + ' -> ' + \
+                                                                label_map[k] for k, v in depths.items() if v == 2], \
+                                                    question = example['input'])
+                linshi = ''
+                for i in example['output']:
+                    linshi += label_map[i] + ' , '
+                example['output'] = linshi[:-1]
+                example['output'] += ' $$$ </s>' 
+            elif(dataset == 'bgc'):
+                labels_set = []
+                label_map = {k : k for k, v in _label_dict.items()}
+
+                for k, v in _label_dict.items():
+                    label_path = []
+                    label_name = k
+                    while (label_name != 'Root'):
+                        label_path.append(label_map[label_name])
+                        label_name = r_hiera[label_name]
+                    labels_set.append(' -> '.join(label_path[::-1]))
+                example['input'] = prompt_text.format(triples = labels_set, question = example['input'])
+                linshi = ''
+                for i in example['output']:
+                    linshi += label_map[i] + ' , '
+                example['output'] = linshi[:-1]
+                example['output'] += ' $$$ </s>' 
+            elif(dataset == 'bioasq' or dataset == 'eurlex'  or dataset == 'wos'):
+                example['input'] = prompt_text.format(triples = [k for k, v in depths.items() if v == 1] + \
+                                                    [r_hiera[k] + ' -> ' + k for k, v in depths.items() if v == 2] , \
+                                                    question = example['input'])
+                label_map = {k : k for k, v in _label_dict.items()}
+
+                linshi = ''
+                for i in example['output']:
+                    linshi += label_map[i] + ' , '
+                example['output'] = linshi[:-1]
+                example['output'] += ' $$$ </s>' 
+            elif(dataset == 'nyt'):
+                    labels_set = []
+                    label_mapping = {k : k for k, v in _label_dict.items()}
+                    for k, v in _label_dict.items():
+                        label_path = []
+                        label_name = k
+                        while (label_name != 'Root'):
+                            label_path.append(label_mapping[label_name])
+                            label_name = r_hiera[label_name]
+                    # labels_set.append(' -> '.join(label_path[::-1]))
+                        linshi = ''
+                        for i in reversed(label_path[1:]):
+                            linshi += i.split('/')[-1] +     ' -> '
+                        linshi+=label_path[0].split('/')[-1]
+                        labels_set.append(linshi)
+                    example['input'] = prompt_text.format(triples = labels_set, question = example['input'])
+
+                    linshi = ''
+                    for i in example['output']:
+                        linshi += i.replace('/')[-1] + ' , '
+                    example['output'] = linshi[:-1]
+                    example['output'] += ' $$$ </s>' 
+
+            # print(example['output'])
+
+            if not example['input'].endswith((' ', '\n', '\t')) and not example['output'].startswith((' ', '\n', '\t')):
+                example_text = example['input'] + ' ' + example['output']
+            else:
+                example_text = example['input'] + example['output']
+            example_text = example_text + tokenizer.eos_token
+            tokenized_example = tokenizer(example_text, return_tensors='pt', max_length=max_seq_length, truncation=True)
+            input_ids = tokenized_example.input_ids
+            labels = input_ids.clone()
+            tokenized_prompt = tokenizer(example['input'], return_tensors='pt', max_length=max_seq_length, truncation=True)
+            # mask the prompt part for avoiding loss
+            labels[:, :tokenized_prompt.input_ids.shape[1]] = -100
+            attention_mask = torch.ones_like(input_ids)
+            # return {
+            #     'input_ids': input_ids.flatten(),
+            #     'labels': labels.flatten(),
+            #     'attention_mask': attention_mask.flatten(),
+            # }
+            return input_ids.flatten(), labels.flatten(), attention_mask.flatten()
+        elif mode == "dev":
+            # 追加prompt
+            if(dataset == 'aapd'):
+                example['input'] = prompt_text.format(triples = [ label_map[r_hiera[k]] + ' -> ' + \
+                                                                label_map[k] for k, v in depths.items() if v == 2], \
+                                                    question = example['input'])
+            elif(dataset == 'bgc'):
+                labels_set = []
+                label_map = {k : k for k, v in _label_dict.items()}
+
+                for k, v in _label_dict.items():
+                    label_path = []
+                    label_name = k
+                    while (label_name != 'Root'):
+                        label_path.append(label_map[label_name])
+                        label_name = r_hiera[label_name]
+                    labels_set.append(' -> '.join(label_path[::-1]))
+                example['input'] = prompt_text.format(triples = labels_set, question = example['input'])
+
+            elif(dataset == 'bioasq' or dataset == 'eurlex'  or dataset == 'wos'):
+                example['input'] = prompt_text.format(triples = [k for k, v in depths.items() if v == 1] + \
+                                                    [r_hiera[k] + ' -> ' + k for k, v in depths.items() if v == 2] , \
+                                                    question = example['input'])
+            elif(dataset == 'nyt'):
+                    labels_set = []
+                    label_mapping = {k : k for k, v in _label_dict.items()}
+                    for k, v in _label_dict.items():
+                        label_path = []
+                        label_name = k
+                        while (label_name != 'Root'):
+                            label_path.append(label_mapping[label_name])
+                            label_name = r_hiera[label_name]
+                    # labels_set.append(' -> '.join(label_path[::-1]))
+                        linshi = ''
+                        for i in reversed(label_path[1:]):
+                            linshi += i.split('/')[-1] +     ' -> '
+                        linshi+=label_path[0].split('/')[-1]
+                        labels_set.append(linshi)
+                    example['input'] = prompt_text.format(triples = labels_set, question = example['input'])
+
+            # 追加prompt
+            example_text = example['input']
+            tokenized_example = tokenizer(example_text, return_tensors='pt', max_length=max_seq_length, truncation=True)
+            input_ids = tokenized_example.input_ids
+            attention_mask = torch.ones_like(input_ids)
+            return {
+                'input_ids': input_ids.flatten(),
+                'attention_mask': attention_mask.flatten(),
+                'input': example['input'],
+                'output': example['output']
+            }
+    
 
 class TuluJsonTorchDataset(JsonTorchDataset):
 
