@@ -781,6 +781,10 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
                 depths = depths, r_hiera = r_hiera, _label_dict = _label_dict
             )
             dataset = Dataset.from_list(dataset)
+            if self.dataset_name == "wos":
+                dataset = dataset.rename_column('doc_token', 'input')
+                dataset = dataset.rename_column('doc_label', 'output')
+                
             self.dataset = dataset.map(
                 encode_function_train,
                 batched=False,
