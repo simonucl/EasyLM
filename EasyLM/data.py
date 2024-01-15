@@ -748,9 +748,11 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
         fs = GCSFileSystem()
         dataset = []
         self.dataset_name = self.config.path.split('/')[-2]
+        print(f'loading dataset {self.dataset_name}')
         assert self.dataset_name in ['aapd', 'bgc', 'bioasq', 'eurlex', 'nyt', 'wos'], f'dataset name {self.dataset_name} not supported'
         if 'gs://' in self.config.path:
             taxonomy_path = '/'.join(self.config.path.split('/')[:-1]) + f'/{self.dataset_name}.taxonomy'
+            print(f'loading taxonomy from {taxonomy_path}')
             hiera, _label_dict, r_hiera, depths = self.get_hierarchy_info(taxonomy_path)
 
             label_mapping= {}

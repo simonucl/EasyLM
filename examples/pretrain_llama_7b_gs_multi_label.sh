@@ -35,7 +35,7 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=1e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.00 \
-    --num_epochs=15 \
+    --num_epochs=10 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='classification_json_torch' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket-us/data/processed/wos/wos_train.json' \
