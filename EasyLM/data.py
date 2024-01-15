@@ -753,6 +753,9 @@ class ClassificationJsonTorchDataset(JsonTorchDataset):
         if 'gs://' in self.config.path:
             taxonomy_path = '/'.join(self.config.path.split('/')[:-1]) + f'/{self.dataset_name}.taxonomy'
             print(f'loading taxonomy from {taxonomy_path}')
+            from time import time, sleep
+            sleep(50)
+            
             hiera, _label_dict, r_hiera, depths = self.get_hierarchy_info(taxonomy_path)
 
             label_mapping= {}
