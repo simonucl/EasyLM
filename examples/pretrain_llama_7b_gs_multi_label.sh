@@ -17,7 +17,7 @@ export LIBTPU_INIT_ARGS='--xla_jf_spmd_threshold_for_windowed_einsum_mib=0 --xla
 
 
 python -m EasyLM.models.llama.llama_train \
-    --mesh_dim='1,8,-1' \
+    --mesh_dim='1,2,-1' \
     --dtype='bf16' \
     --initialize_jax_distributed=True \
     --total_steps=250000 \
