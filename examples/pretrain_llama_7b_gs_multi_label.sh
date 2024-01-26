@@ -27,18 +27,18 @@ python -m EasyLM.models.llama.llama_train \
     --load_llama_config='7b' \
     --update_llama_config='' \
     --load_dataset_state='' \
-    --load_checkpoint='params::gs://data-selection-bucket-us/easylm/Llama-2-7b-chat-hf' \
-    --tokenizer.vocab_file='gs://data-selection-bucket-us/Llama-2-7b-chat-hf/tokenizer.model' \
+    --load_checkpoint='params::gs://data-selection-bucket/easylm/Llama-2-7b-chat-hf' \
+    --tokenizer.vocab_file='gs://data-selection-bucket/Llama-2-7b-chat-hf/tokenizer.model' \
     --optimizer.type='adamw' \
     --optimizer.accumulate_gradient_steps=8 \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=2e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
     --optimizer.adamw_optimizer.warmup_ratio=0.03 \
-    --num_epochs=5 \
+    --num_epochs=3 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='classification_json_torch' \
-    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket-us/data/processed/wos/wos_train.json' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/wos/wos_train.json' \
     --train_dataset.json_torch_dataset.seq_length=2048 \
     --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
@@ -48,7 +48,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.online=True \
     --logger.prefix='EasyLM' \
     --logger.project="open_llama_7b" \
-    --logger.output_dir="gs://data-selection-bucket-us/easylm/output" \
+    --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
     --log_all_worker=False
 | & tee $HOME/output.txt
