@@ -39,7 +39,7 @@ python -m EasyLM.models.llama.llama_train \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='json_processed' \
     --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_KCenterGreedyDeita_0.05.pkl' \
-    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
+    --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/selection/indices/sharegpt_KMenasRandomDeita_64_0.05.pkl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
@@ -51,7 +51,7 @@ python -m EasyLM.models.llama.llama_train \
     --logger.project="open_llama_7b" \
     --logger.output_dir="gs://data-selection-bucket/easylm/output" \
     --logger.wandb_dir="$HOME/experiment_output/open_llama_7b" \
-    --log_all_worker=True
+    --log_all_worker=False
 # | & tee $HOME/output.txt
 
 #     # --train_dataset.text_processor.fields='text' \

@@ -1,6 +1,6 @@
 # MODEL_PATH='gs://data-selection-bucket/easylm/output/eb4c2882129e4fc1a73a4dbafbbcef2f/streaming_train_state_1920'
-MODEL_PATH='gs://data-selection-bucket/easylm/output/b926c149186a4301bfd8f4ef5bfb3f3c/streaming_train_state_11274'
-MODEL='multi-label-wos-epoch_3'
+MODEL_PATH='gs://data-selection-bucket/easylm/output/59a5b7827eba4bc3b2a732191907c8bf/streaming_train_state_12660'
+MODEL='sharegpt-KCenterGreedy-005-full-ft'
 # EPOCH='epoch_3'
 
 python -m EasyLM.models.llama.convert_easylm_to_hf \
