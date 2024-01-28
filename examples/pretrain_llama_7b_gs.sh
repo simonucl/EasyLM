@@ -34,14 +34,14 @@ python -m EasyLM.models.llama.llama_train \
     --optimizer.adamw_optimizer.weight_decay=0.00 \
     --optimizer.adamw_optimizer.lr=1e-5 \
     --optimizer.adamw_optimizer.end_lr=5e-6 \
-    --optimizer.adamw_optimizer.warmup_ratio=0.00 \
+    --optimizer.adamw_optimizer.warmup_ratio=0.03 \
     --num_epochs=5 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='json_processed' \
     --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_KCenterGreedyDeita_0.05.pkl' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
-    --train_dataset.json_torch_dataset.batch_size=16 \
+    --train_dataset.json_torch_dataset.batch_size=8 \
     --train_dataset.json_torch_dataset.num_workers=24 \
     --checkpointer.save_optimizer_state=True \
     --llama.scan_attention=True \
