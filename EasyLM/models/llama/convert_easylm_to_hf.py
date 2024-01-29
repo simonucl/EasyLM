@@ -31,6 +31,7 @@ import flax
 from flax.traverse_util import flatten_dict
 import torch
 from transformers import LlamaConfig, LlamaForCausalLM, LlamaTokenizer
+from tqdm import tqdm
 
 from EasyLM.checkpoint import StreamingCheckpointer
 from EasyLM.jax_utils import float_tensor_to_dtype
@@ -111,9 +112,10 @@ def match_keywords(string, positives, negatives):
 
 def load_and_convert_checkpoint(path):
     _, flax_params = StreamingCheckpointer.load_trainstate_checkpoint(path)
+    print("Converting the checkpoint to the PyTorch format.")
     flax_params = flatten_dict(flax_params['params'], sep='.')
     torch_params = {}
-    for key, tensor in flax_params.items():
+    for key, tensor in tqdm(flax_params.items()):
         if match_keywords(key, ["kernel"], ["norm", 'ln_f']):
             tensor = tensor.T
         torch_params[key] = torch.tensor(

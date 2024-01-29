@@ -186,6 +186,7 @@ def main(argv):
                 logits, batch['target_tokens'], batch['loss_masks']
             )
         grad_fn = jax.value_and_grad(loss_and_accuracy, has_aux=True)
+        # this should be where the grads information is stored for each step
         (loss, accuracy), grads = grad_fn(train_state.params)
         train_state = train_state.apply_gradients(grads=grads)
         metrics = dict(
