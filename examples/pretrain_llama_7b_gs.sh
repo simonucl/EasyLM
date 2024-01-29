@@ -38,7 +38,7 @@ python -m EasyLM.models.llama.llama_train \
     --num_epochs=5 \
     --train_dataset.text_processor.fields='[question+prompt],answer' \
     --train_dataset.type='json_processed' \
-    --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_KMenasRandomDeita_64_0.05.pkl' \
+    --train_dataset.selection_indices_path='gs://data-selection-bucket/data/selection/indices/sharegpt_KMenasRandomDeita_1024_0.05.pkl' \
     --train_dataset.json_torch_dataset.path='gs://data-selection-bucket/data/processed/sharegpt/sharegpt_data_processed.jsonl' \
     --train_dataset.json_torch_dataset.seq_length=4096 \
     --train_dataset.json_torch_dataset.batch_size=8 \
