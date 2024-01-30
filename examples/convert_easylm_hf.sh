@@ -1,6 +1,11 @@
 # MODEL_PATH='gs://data-selection-bucket/easylm/output/eb4c2882129e4fc1a73a4dbafbbcef2f/streaming_train_state_1920'
-MODEL_PATH='gs://data-selection-bucket/easylm/output/44db625ecc1b48b4985b85a9d48dcc04/streaming_train_state_5275'
 MODEL='sharegpt-KCenterGreedy-005-full-ft'
+
+cd /mnt/data/lm-evaluation-harness
+bash eval_model.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL-additional.log
+
+# MODEL_PATH='gs://data-selection-bucket/easylm/output/sharegpt_KMenasRandomDeita_64_0.05/streaming_train_state_5240'
+# MODEL='sharegpt-KMenasRandomDeita-64-0.05'
 # EPOCH='epoch_3'
 
 # python -m EasyLM.models.llama.convert_easylm_to_hf \
@@ -10,16 +15,28 @@ MODEL='sharegpt-KCenterGreedy-005-full-ft'
 #     --output_dir="/mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL" \
 #     --hf_dir="simonycl/llama-2-7b-hf-$MODEL" \
 
-# curl -X POST -H 'Content-type: application/json' --data '{"text":"Finish converting Easylm to hf"}' https://hooks.slack.com/services/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
+curl -X POST -H 'Content-type: application/json' --data '{"text":"Finish converting Easylm to hf"}' https://hooks.slack.com/services/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
 
-cd /mnt/data/lm-evaluation-harness
-bash eval_model.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL.log
+# cd /mnt/data/lm-evaluation-harness
+# bash eval_model.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL.log
 # bash eval_model.sh simonycl/llama-2-7b-hf-sharegpt-full-ft-$EPOCH Llama-2-7b-hf-sharegpt-$EPOCH 
 
-cd /mnt/data/data-selection/
-bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL-mmlu.log
+# cd /mnt/data/data-selection/
+# bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL-mmlu.log
 
-curl -X POST -H 'Content-type: application/json' --data '{"text":"All evalution done for sharegpt-KCenterGreedy-005-full-ft, check gcp cluster"}' https://hooks.slack.com/services/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
+# curl -X POST -H 'Content-type: application/json' --data '{"text":"All evalution done for sharegpt-KCenterGreedy-005-full-ft, check gcp cluster"}' https://hooks.slack.com/services/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
+
+# MODEL_PATH='gs://data-selection-bucket/easylm/output/KMenasRandomDeita_1024_0.05/streaming_train_state_5105'
+# MODEL='sharegpt-KMenasRandomDeita-1024-0.05'
+
+# cd /mnt/data/lm-evaluation-harness
+# bash eval_model.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL.log
+# # bash eval_model.sh simonycl/llama-2-7b-hf-sharegpt-full-ft-$EPOCH Llama-2-7b-hf-sharegpt-$EPOCH 
+
+# cd /mnt/data/data-selection/
+# bash scripts/eval/cohere.sh /mnt/data/EasyLM/model/Llama-2-7b-hf-$MODEL Llama-2-7b-hf-$MODEL > /mnt/data/EasyLM/eval_results/Llama-2-7b-hf-$MODEL-mmlu.log
+
+# curl -X POST -H 'Content-type: application/json' --data '{"text":"All evalution done for sharegpt-KCenterGreedy-005-full-ft, check gcp cluster"}' https://hooks.slack.com/services/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
 
 ###############################################################
 # cd /mnt/data/EasyLM/examples
