@@ -88,6 +88,10 @@ class DatasetFactory(object):
         elif config.type == 'tulu_json_torch':
             torch.manual_seed(42) # keep dataloader order the same across devices.
             dataset = TuluJsonTorchDataset(config.json_torch_dataset, tokenizer, text_processor, **kwargs)
+            if config.selection_indices_path != '':
+                with mlxu.open_file(config.selection_indices_path, 'rb') as f:
+                    indices = pickle.load(f)
+                dataset = cls.select_subset(dataset, indices)
             return DataLoader(
                 dataset,
                 batch_size=config.json_torch_dataset.batch_size,
